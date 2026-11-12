@@ -8,7 +8,7 @@ requires-python = ">=3.12"
 [tool.ruff]
 line-length = 100
 target-version = "py312"
-src = ["backend", "frontend", "tests"]
+src = ["."]
 # Les exemples de code des documents sont alignés pour être lus, pas formatés.
 extend-exclude = ["backend/db/migrations/versions", "*.md"]
 
