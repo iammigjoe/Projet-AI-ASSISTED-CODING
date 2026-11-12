@@ -1,0 +1,13 @@
+{
+  "timezone": "Europe/Paris",
+  "session_minutes": 60,
+  "slots": {
+    "monday":    ["18:00-20:00"],
+    "tuesday":   ["18:00-19:00"],
+    "wednesday": ["14:00-17:00"],
+    "thursday":  ["18:00-20:00"],
+    "friday":    [],
+    "saturday":  ["10:00-12:00", "14:00-16:00"],
+    "sunday":    ["15:00-17:00"]
+  }
+}
