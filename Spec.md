@@ -305,5 +305,5 @@ Une pull request est fusionnée seulement si :
 
 1. Les [conventions de nommage](docs/conventions_de_nommage.md) et les fichiers de contrat ci-dessus.
 2. Le lot concerné et son périmètre de fichiers : l'assistant ne modifie rien en dehors sans le dire.
-3. Les règles qui ne se devinent pas : `user_id` en premier argument de chaque méthode de repository ; `now` en paramètre dans le domaine ; instants en UTC avec fuseau, disponibilités en heure locale ; réponse API toujours par un schéma `Read`.
+3. Les règles qui ne se devinent pas : `user_id` en premier argument de chaque méthode de repository ; `now` en paramètre dans le domaine ; instants en UTC avec fuseau, disponibilités en heure locale ; réponse API toujours par un schéma `Read` ; en-tête encadré, sections, docstrings et commentaires en français selon le [§12 des conventions](docs/conventions_de_nommage.md#12-commentaires-et-docstrings).
 4. Le code produit est relu comme un code humain : l'assistant ne connaît que les décisions écrites dans `docs/` et ici.

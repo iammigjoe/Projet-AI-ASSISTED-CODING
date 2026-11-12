@@ -15,7 +15,7 @@ Règles de nommage de MyPlan, de la base de données jusqu'aux branches Git. Ell
 9. [Variables d'environnement](#9-variables-denvironnement)
 10. [Git](#10-git)
 11. [Fichiers et dossiers](#11-fichiers-et-dossiers)
-12. [Docstrings d'en-tête](#12-docstrings-den-tête)
+12. [Commentaires et docstrings](#12-commentaires-et-docstrings)
 
 ---
 
@@ -24,7 +24,7 @@ Règles de nommage de MyPlan, de la base de données jusqu'aux branches Git. Ell
 | Règle | Détail |
 |---|---|
 | **Langue du code** | Anglais : modules, classes, fonctions, variables, routes, tables, colonnes |
-| **Langue des contenus** | Français : textes de l'interface, messages d'erreur affichés à l'étudiant, documentation |
+| **Langue des contenus** | Français : textes de l'interface, messages d'erreur affichés à l'étudiant, documentation, en-têtes, docstrings et commentaires (§12) |
 | **Abréviations** | Interdites, sauf acronymes établis (`id`, `url`, `pdf`, `jwt`, `llm`, `utc`) et unités (`min`) |
 | **Un concept, un nom** | Le même mot dans toutes les couches : `Chapter` (modèle), `chapters` (table), `ChapterRead` (schéma), `/api/v1/chapters` (route), `ChapterRepository` (accès aux données) |
 | **Vocabulaire fixé** | Voir le glossaire ci-dessous : on n'écrit jamais `lesson` pour un chapitre ni `slot` pour une session |
@@ -578,89 +578,271 @@ Le nom d'origine d'un fichier uploadé est stocké en base (`filename_original`)
 
 ---
 
-## 12. Docstrings d'en-tête
+## 12. Commentaires et docstrings
 
-Chaque fichier de service, de domaine, d'intégration et de router commence par une docstring qui permet de comprendre son rôle sans lire le code. En anglais, comme le code.
+Objectif : comprendre le rôle d'un fichier sans lire son code, retrouver un bloc sans faire défiler tout le fichier, et savoir *pourquoi* une ligne est écrite ainsi.
 
-### Service
+| Élément | Langue | Pourquoi |
+|---|---|---|
+| Identifiants (classes, fonctions, variables) | Anglais | Règle du §1 |
+| En-têtes, docstrings, commentaires | **Français** | C'est la langue de l'équipe et de la documentation : une explication doit être lue sans effort par les quatre membres |
+| Mots-clés des docstrings (`Args`, `Returns`, `Raises`, `Example`) | Anglais | Ce sont des mots réservés du format Google : l'éditeur et les outils de documentation ne les reconnaissent qu'en anglais |
 
-```python
-"""
-PlanningService
-===============
-Purpose:
-    Generates and activates study plans for one user.
+### 12.1 En-tête de fichier
 
-Responsibilities:
-    - Load chapters, availabilities, exceptions and deadlines for the user.
-    - Call the pure planner (domain/planner.py) and persist the result as a new plan version.
-    - Activate a draft plan and archive the previous active one.
-
-Dependencies:
-    ChapterRepository, AvailabilityRepository, DeadlineRepository,
-    PlanRepository, BusyTimeReader (optional, Google Calendar)
-
-Used by:
-    api/routers/plans.py
-
-Raises:
-    PlanNotFeasibleError  when the available time is insufficient before a deadline
-"""
-```
-
-### Domaine
+Tout fichier Python qui contient du code commence par un en-tête encadré. Seuls les `__init__.py` vides en sont dispensés.
 
 ```python
 """
-planner
-=======
-Purpose:
-    Places study sessions into free slots so that every chapter is finished before its deadline.
+===============================================================================
+Repository : CourseRepository
+===============================================================================
+Objectif :
+    Centraliser toutes les requêtes sur les matières (table courses).
 
-Pure:
-    No database, no network, no clock. "now" is a parameter.
+Responsabilités :
+    - Lire, créer, modifier et supprimer les matières d'un utilisateur.
+    - Filtrer chaque requête par user_id : une matière d'un autre
+      utilisateur n'est jamais trouvée.
 
-Inputs:
-    chapters: list[ChapterToPlan], free_slots: list[FreeSlot], settings: StudySettings, now: datetime
+Utilisé par :
+    CourseService
 
-Output:
-    PlanResult (sessions) or PlanResult with shortfalls when the plan is not feasible.
-    Never returns a partial plan silently.
+Exemple d'utilisation :
+    courses = course_repository.list_sorted_by_name(user_id=current_user.id)
+
+Lot :
+    A (socle et sécurité)
+===============================================================================
 """
 ```
 
-### Router
+La première ligne nomme le **type** et le **nom** de l'élément principal du fichier : `Repository : CourseRepository`, `Service : PlanningService`, `Domaine : planner`, `Router : /api/v1/plans`, `Page : Planning`, `Modèle : Course`, `Schémas : courses`, `Intégration : GoogleCalendarClient`, `Tests : planner`.
+
+#### Rubriques
+
+| Rubrique | Contenu | Obligatoire pour |
+|---|---|---|
+| `Objectif :` | Une ou deux phrases : à quoi sert le fichier | tous |
+| `Responsabilités :` | Liste de ce que le fichier fait, et de ce qu'il garantit | tous, sauf schémas et tests |
+| `Dépendances :` | Classes ou interfaces reçues en paramètre | services, intégrations |
+| `Utilisé par :` | Qui appelle ce fichier | services, repositories, domaine, intégrations |
+| `Lève :` | Exceptions métier qui sortent du fichier | services, domaine, intégrations |
+| `Endpoints :` | Méthode, route, rôle, une ligne par endpoint | routers |
+| `Sécurité :` | Qui peut appeler, et comment la propriété est vérifiée | routers |
+| `Pur :` | Rappel : ni base, ni réseau, ni horloge | domaine |
+| `Appelle :` | Fonctions de `frontend/api/` utilisées | pages Streamlit |
+| `Exemple d'utilisation :` | Un appel réel, copiable | services, repositories, domaine, intégrations |
+| `Lot :` | Lot responsable (voir [repartition_taches.md](repartition_taches.md)) | tous |
+
+**Une rubrique s'écrit quand son contenu existe.** Un fichier qui vient d'être créé peut n'avoir que `Objectif` et `Lot` : les autres rubriques sont ajoutées en même temps que le code, dans la même pull request. Une rubrique remplie d'avance (« à compléter ») ou qui ne décrit plus le code est pire qu'une rubrique absente.
+
+#### Exemples par type de fichier
+
+Domaine :
 
 ```python
 """
-Router: /api/v1/plans
-=====================
-Endpoints:
-    POST  /api/v1/plans                         Generate a new draft plan
-    GET   /api/v1/plans/{plan_id}/study-sessions List the sessions of a plan
-    POST  /api/v1/plans/{plan_id}/activate      Make a draft the active plan
-    POST  /api/v1/plans/{plan_id}/google-sync   Export the plan to Google Calendar
+===============================================================================
+Domaine : planner
+===============================================================================
+Objectif :
+    Placer les sessions d'étude dans les créneaux libres pour que chaque
+    chapitre soit terminé avant la plus proche de ses échéances.
 
-Security:
-    Authenticated user only. Every plan_id is checked against the current user (404 otherwise).
+Responsabilités :
+    - Respecter la durée maximale d'une session et la pause entre deux
+      sessions (RG7).
+    - Ne jamais placer une session après l'échéance de son chapitre (RG8).
+    - Si le temps manque, renvoyer le manque par échéance au lieu d'un
+      planning partiel.
+
+Pur :
+    Ni base, ni réseau, ni horloge : « now » est un paramètre.
+
+Utilisé par :
+    PlanningService
+
+Exemple d'utilisation :
+    result = plan(chapters, free_slots, settings, now=datetime.now(UTC))
+    if result.shortfalls:
+        raise PlanNotFeasibleError(result.shortfalls)
+
+Lot :
+    C (planification)
+===============================================================================
 """
 ```
 
-### Page Streamlit
+Router :
 
 ```python
 """
-Page: Planning
-==============
-Purpose:
-    Shows the active plan as a list and as a week/month calendar,
-    and lets the student mark a session as done or missed.
+===============================================================================
+Router : /api/v1/plans
+===============================================================================
+Objectif :
+    Exposer la génération et la gestion des plannings.
 
-Calls:
-    planning_api.get_active_plan, planning_api.update_study_session
+Endpoints :
+    POST  /api/v1/plans                          Génère un nouveau brouillon
+    GET   /api/v1/plans/{plan_id}/study-sessions Liste les sessions d'un planning
+    POST  /api/v1/plans/{plan_id}/activate       Fait d'un brouillon le planning actif
 
-Notes:
-    - Displays times in the user's timezone; the API sends UTC.
-    - Never renders user content with unsafe_allow_html.
+Sécurité :
+    Utilisateur connecté uniquement. Chaque plan_id est cherché avec le
+    user_id courant : un planning d'un autre utilisateur répond 404.
+
+Lot :
+    C (planification)
+===============================================================================
 """
 ```
+
+Page Streamlit :
+
+```python
+"""
+===============================================================================
+Page : Planning
+===============================================================================
+Objectif :
+    Afficher le planning actif en liste et en calendrier (semaine, mois), et
+    marquer une session faite ou non faite.
+
+Appelle :
+    planning_api.get_active_plan, progress_api.update_study_session
+
+Notes :
+    - Heures affichées dans le fuseau de l'étudiant ; l'API envoie de l'UTC.
+    - Jamais de unsafe_allow_html avec du contenu de l'utilisateur.
+
+Lot :
+    C (planification)
+===============================================================================
+"""
+```
+
+Test :
+
+```python
+"""
+===============================================================================
+Tests : planner
+===============================================================================
+Objectif :
+    Vérifier les règles RG7 et RG8 et le message d'infaisabilité, y compris
+    autour des changements d'heure.
+
+Lot :
+    C (planification)
+===============================================================================
+"""
+```
+
+### 12.2 Sections dans un fichier
+
+Un fichier qui contient plus d'un bloc est découpé en sections, toujours dans cet ordre, avec ce séparateur :
+
+```python
+# =============================================================================
+# Constantes
+# =============================================================================
+```
+
+| Ordre | Section | Contenu |
+|---|---|---|
+| 1 | *(sans titre)* | En-tête, puis imports, groupés et triés par `ruff` |
+| 2 | `Constantes` | `UPPER_SNAKE_CASE` du module |
+| 3 | `Types` | Dataclasses, `Protocol`, alias de types |
+| 4 | `API publique` | Classes et fonctions appelées depuis d'autres fichiers |
+| 5 | `Fonctions internes` | Fonctions préfixées `_` |
+
+Une section vide est omise. Les imports n'ont pas de titre : `ruff` les réordonne, et un titre au milieu le gênerait.
+
+À l'intérieur d'une classe longue, des sous-sections plus légères regroupent les méthodes :
+
+```python
+    # --- Lecture ------------------------------------------------------------
+
+    # --- Écriture -----------------------------------------------------------
+```
+
+Un fichier qui a besoin de plus de cinq sections, ou de sous-sections dans plusieurs classes, est probablement trop gros : c'est le signal pour le découper.
+
+### 12.3 Docstrings de classes et de fonctions
+
+Format Google, texte en français. La première ligne est une phrase complète, au présent, qui dit ce que fait la fonction : elle s'affiche seule au survol dans l'éditeur.
+
+```python
+class CourseRepository:
+    """Accès aux matières, toujours filtré par utilisateur."""
+
+    def list_sorted_by_name(self, user_id: int) -> list[Course]:
+        """Récupère les matières d'un utilisateur, triées par nom.
+
+        Args:
+            user_id: Utilisateur connecté, issu de get_current_user.
+
+        Returns:
+            Les matières de l'utilisateur, liste vide s'il n'en a aucune.
+        """
+```
+
+```python
+def estimate_minutes(word_count: int, settings: StudySettings, difficulty: int) -> int:
+    """Estime la durée d'étude d'un chapitre, en minutes entières.
+
+    Applique (mots / vitesse de lecture) x coefficient de difficulté
+    x coefficient d'objectif (P0-07), arrondi à la minute supérieure.
+
+    Args:
+        word_count: Nombre de mots du chapitre, positif ou nul.
+        settings: Profil d'étude, dont la vitesse de lecture et l'objectif.
+        difficulty: Difficulté perçue de la matière, de 1 à 5.
+
+    Returns:
+        La durée estimée ; 0 pour un chapitre vide.
+
+    Raises:
+        ValueError: Si difficulty n'est pas entre 1 et 5.
+    """
+```
+
+| Quand | Docstring |
+|---|---|
+| Classe, fonction ou méthode **publique** du domaine, des services, des repositories, des intégrations | Obligatoire, avec `Args`, `Returns`, `Raises` dès qu'ils ont un contenu |
+| Endpoint d'un router | Une phrase : FastAPI l'affiche comme description dans la documentation OpenAPI (`/docs`) |
+| Fonction interne (`_nom`) | Une ligne, seulement si le nom ne suffit pas |
+| Test | Aucune : le nom `test_<unité>_<scénario>_<résultat>` est la description |
+| Méthode évidente (`__init__` qui ne fait qu'affecter) | Aucune |
+
+Les types ne sont **pas** répétés dans la docstring : ils sont dans la signature, et une docstring qui les recopie finit par la contredire. `Args` dit ce que la valeur signifie et ses limites (« de 1 à 5 », « en UTC »), pas son type.
+
+Un `Example` écrit au format `>>>` doit être juste : il peut être exécuté par `pytest --doctest-modules`.
+
+### 12.4 Commentaires
+
+Un commentaire dit **pourquoi**, jamais **quoi** : le code dit déjà ce qu'il fait.
+
+```python
+# MAL : répète le code
+# Trie les créneaux par début
+free_slots.sort(key=lambda slot: slot.starts_at)
+
+# BIEN : explique une décision qu'on ne devine pas
+# Le planificateur remplit les créneaux dans l'ordre : sans ce tri, une
+# session pourrait être placée après un créneau plus proche resté libre.
+free_slots.sort(key=lambda slot: slot.starts_at)
+```
+
+| Règle | Exemple |
+|---|---|
+| Au-dessus de la ligne concernée, pas en fin de ligne (sauf unité ou valeur courte) | `MAX_PAGES = 500  # au-delà, PDF probablement piégé` |
+| Renvoyer à la règle ou à la spec qui justifie le code | `# RG11 : seules les sessions futures et prévues bougent.` |
+| Signaler un piège connu | `# SQLite ignore les clés étrangères sans ce PRAGMA (modele_donnees.md §5).` |
+| Pas de code commenté | Git garde l'historique : du code mort commenté se supprime |
+| Pas de commentaire qui raconte l'historique (« corrigé le… », « avant on faisait… ») | Sa place est le message de commit |
+| `TODO` toujours attribué et suivi | `# TODO(lot C) : prendre en compte importance pour départager (#42)` |
+
+Un `TODO` sans lot ni numéro de ticket est refusé en revue : personne ne le reprendra.

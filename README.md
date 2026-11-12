@@ -143,27 +143,58 @@ Le détail et les critères d'acceptation de chaque fonctionnalité sont dans le
 
 ## Structure du dépôt
 
+Les dossiers existent, vides : le code n'a pas commencé. Chaque lot y crée ses fichiers en suivant les [conventions de nommage](docs/conventions_de_nommage.md) et la [répartition des tâches](docs/repartition_taches.md). Un `.gitkeep` garde chaque dossier vide dans Git, et peut être supprimé dès que le dossier contient un fichier.
+
 ```text
 myplan/
-├── frontend/              # Couche 1 : Streamlit
-│   ├── app.py
-│   ├── pages/             # Une page par écran, titres français déclarés dans app.py
-│   ├── components/        # Morceaux d'interface réutilisés
-│   └── api/               # Clients HTTP par domaine, seul contact avec FastAPI
-├── backend/
-│   ├── api/               # Couche 2 : routers, schémas, dépendances (auth)
-│   ├── services/          # Couche 3 : cas d'usage
-│   ├── domain/            # Couche 4 : estimation, planificateur, mémorisation (purs)
-│   ├── repositories/      # Couche 5 : accès aux données, filtrés par user_id
-│   ├── integrations/      # Couche 6 : Google, LLM, parseurs, scheduler
-│   ├── core/              # Configuration, sécurité, journalisation
-│   └── db/                # Modèles et migrations
-├── data/                  # Base SQLite (non versionnée)
-├── storage/               # Fichiers uploadés, hors accès public (non versionnés)
-├── tests/
-├── docs/                  # Conception : conventions, modèle de données, classes, répartition
-├── Spec.md                # Spécifications fonctionnelles détaillées
-└── .env.example           # Variables d'environnement attendues, sans secret
+│
+├── frontend/                        # Couche 1 : interface Streamlit, sans règle métier ni accès à la base
+│   ├── pages/                       # Un fichier par écran (matières, documents, planning, tableau de bord…) ;
+│   │                                #   titres français déclarés dans app.py avec st.navigation
+│   ├── components/                  # Morceaux d'interface réutilisés par plusieurs pages (éditeur de chapitres,
+│   │                                #   carte de session)
+│   └── api/                         # Clients HTTP, un fichier par domaine : seul point de contact avec FastAPI
+│
+├── backend/                         # API FastAPI et tout le code métier
+│   ├── api/                         # Couche 2 : point d'entrée HTTP, dépendances (get_current_user), format des erreurs
+│   │   ├── routers/                 # Un router par ressource (/api/v1/courses, /plans…) : traduit HTTP en appel de service
+│   │   └── schemas/                 # Schémas Pydantic Create / Update / Read : ce qui entre et sort de l'API
+│   ├── services/                    # Couche 3 : un service par cas d'usage (ingestion, planification, suivi,
+│   │                                #   synchronisation Google, notifications, mémorisation)
+│   ├── domain/                      # Couche 4 : logique pure, sans base, réseau ni horloge (estimation,
+│   │                                #   détection des chapitres, planificateur, courbe d'oubli) et contrats entre lots
+│   ├── repositories/                # Couche 5 : requêtes SQL via SQLAlchemy, chaque méthode filtrée par user_id
+│   ├── integrations/                # Couche 6 : tout ce qui est externe, derrière une interface
+│   │   ├── parsers/                 # Lecture des PDF (PyMuPDF) et du Markdown, avec limite de temps
+│   │   ├── storage/                 # Validation des fichiers envoyés (magic bytes) et stockage sur disque
+│   │   ├── google/                  # OAuth et API Google Calendar : lecture des créneaux occupés, export des sessions
+│   │   ├── llm/                     # Client du LLM pour les résumés de chapitres
+│   │   ├── notifications/           # Canaux d'envoi des rappels (email en premier)
+│   │   └── scheduler/               # Tâches en arrière-plan (APScheduler) : rappels, extraction asynchrone
+│   ├── core/                        # Configuration (variables d'environnement), sécurité (argon2, JWT, Fernet),
+│   │                                #   journalisation, horloge injectée, branchement des implémentations
+│   └── db/                          # Base déclarative, connexion SQLite (PRAGMA), type UtcDateTime
+│       ├── models/                  # Modèles SQLAlchemy, un fichier par table ou groupe de tables
+│       └── migrations/
+│           └── versions/            # Migrations Alembic, une par pull request au plus
+│
+├── tests/                           # Tests pytest, même découpage que backend/
+│   ├── domain/                      # Tests purs du domaine : cas limites, changements d'heure
+│   ├── services/                    # Cas d'usage sur une base SQLite en mémoire, intégrations remplacées par des faux
+│   ├── repositories/                # Requêtes, dont les tests d'isolation entre utilisateurs
+│   ├── api/                         # Endpoints testés avec httpx : codes de réponse, format des erreurs, 404 croisés
+│   ├── integrations/                # Parseurs sur des fichiers réels, Google simulé
+│   └── fixtures/                    # Données de test partagées entre lots
+│       └── documents/               # PDF et Markdown d'exemple, dont des fichiers vides, scannés ou piégés
+│
+├── data/                            # Base SQLite locale (non versionnée)
+├── storage/                         # Fichiers envoyés par les étudiants, nommés par UUID (non versionnés)
+├── docs/                            # Conception : conventions, modèle de données, classes, répartition des tâches
+│
+├── Spec.md                          # Spécifications fonctionnelles : quoi construire, par qui, dans quel ordre
+├── README.md                        # Présentation du projet (ce fichier)
+├── .env.example                     # Variables d'environnement attendues, sans aucune valeur secrète
+└── .gitignore                       # Exclut .env, la base, les fichiers envoyés et les caches Python
 ```
 
 ## Documentation
