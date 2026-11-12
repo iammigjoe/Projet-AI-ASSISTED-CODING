@@ -60,7 +60,7 @@ Règles de nommage de MyPlan, de la base de données jusqu'aux branches Git. Ell
 | Tables | `snake_case` **pluriel** | `courses`, `study_sessions` |
 | Colonnes | `snake_case` | `due_at`, `estimated_min` |
 | Routes | `kebab-case` pluriel, préfixe `/api/v1/` | `/api/v1/study-sessions` |
-| Pages Streamlit | `frontend/views/`, `snake_case`, anglais ; titre affiché en français | `frontend/views/plan.py`, titre « Planning » |
+| Pages Streamlit | `snake_case`, anglais ; titre affiché en français | `plan.py`, titre « Planning » |
 | Branches Git | préfixe + `kebab-case` | `feature/chapter-detection` |
 
 ---
@@ -218,13 +218,13 @@ Avec le dossier `pages/` seul, Streamlit construit le menu à partir du **nom de
 ```python
 # frontend/app.py
 pages = [
-    st.Page("views/courses.py", title="Matières"),
-    st.Page("views/documents.py", title="Documents"),
-    st.Page("views/availabilities.py", title="Disponibilités"),
-    st.Page("views/deadlines.py", title="Échéances"),
-    st.Page("views/plan.py", title="Planning"),
-    st.Page("views/dashboard.py", title="Tableau de bord"),
-    st.Page("views/settings.py", title="Paramètres"),
+    st.Page("pages/courses.py", title="Matières"),
+    st.Page("pages/documents.py", title="Documents"),
+    st.Page("pages/availabilities.py", title="Disponibilités"),
+    st.Page("pages/deadlines.py", title="Échéances"),
+    st.Page("pages/plan.py", title="Planning"),
+    st.Page("pages/dashboard.py", title="Tableau de bord"),
+    st.Page("pages/settings.py", title="Paramètres"),
 ]
 st.navigation(pages).run()
 ```
@@ -232,7 +232,7 @@ st.navigation(pages).run()
 ```text
 frontend/
 ├── app.py                      # Point d'entrée : connexion, puis menu
-├── views/                      # Pas « pages/ » : voir ci-dessous
+├── pages/
 │   ├── login.py
 │   ├── courses.py
 │   ├── documents.py
@@ -252,25 +252,6 @@ frontend/
     ├── chapter_editor.py
     └── session_card.py
 ```
-
-**Le dossier des pages s'appelle `views/`, jamais `pages/`.** Streamlit exécute directement tout fichier d'un dossier `pages/` placé à côté du point d'entrée, en court-circuitant `app.py` : une page s'afficherait alors sans la vérification de connexion. Trouvé en testant le passage de la connexion au menu.
-
-Une page dont le fichier n'existe pas encore est ignorée par le menu : chaque lot crée son fichier dans `views/` et la page apparaît, sans modifier `app.py`.
-
-### Cadre commun de l'interface
-
-Toutes les pages utilisent `frontend/components/ui.py`, pour que les quatre lots produisent une interface cohérente :
-
-| Besoin | Fonction | Règle |
-|---|---|---|
-| Titre de page | `page_header(titre, description)` | Une phrase d'explication sous chaque titre |
-| Erreur de l'API | `show_api_error(error)` | Toujours le message de l'API, jamais un texte réécrit ; les raisons détaillées (`details["problems"]`) sont listées |
-| Succès | `flash(message)` puis `st.rerun()` ; `show_flash()` en haut de page | Le message survit au rerun |
-| Suppression | `confirm_delete(clé, libellé, avertissement)` | Toujours en deux temps, en disant ce qui sera perdu |
-| Date et heure | `format_local_datetime(instant, current_user()["timezone"])` | Jamais d'UTC affiché à l'étudiant |
-| Texte saisi ou extrait | `escape_markdown(texte)` | Voir [securite.md](securite.md) §3 |
-
-Chaque page appelle l'API dans un `try` / `except ApiError`, et s'arrête avec `st.stop()` si les données nécessaires n'ont pas pu être chargées.
 
 Les specs prévoient un seul `api_client.py`. Il est découpé en un fichier par domaine : à quatre, un fichier unique serait modifié dans presque chaque pull request et deviendrait le premier lieu de conflits (voir [repartition_taches.md](repartition_taches.md)).
 

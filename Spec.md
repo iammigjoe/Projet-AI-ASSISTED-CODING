@@ -118,7 +118,7 @@ Principe : **les dépendances ne descendent jamais**. Streamlit ne parle qu'à F
 
 | Couche | Responsabilité | Fonctionnalités concernées |
 |---|---|---|
-| **1. Présentation (Streamlit)** | Affichage, formulaires, état de session UI. **Aucune règle métier, aucun accès DB.** Pages dans **`frontend/views/`** (jamais `pages/`), clients HTTP dans `frontend/api/`, un fichier par domaine, cadre commun dans `frontend/components/ui.py` | Login/inscription (P0-01), upload (P0-03), édition des chapitres (P0-06), saisie des disponibilités et échéances (P0-09/10), calendrier (P0-12), dashboard (P1-03), préférences (P2-07) |
+| **1. Présentation (Streamlit)** | Affichage, formulaires, état de session UI. **Aucune règle métier, aucun accès DB.** Clients HTTP dans `frontend/api/`, un fichier par domaine | Login/inscription (P0-01), upload (P0-03), édition des chapitres (P0-06), saisie des disponibilités et échéances (P0-09/10), calendrier (P0-12), dashboard (P1-03), préférences (P2-07) |
 | **2. API (FastAPI)** | Authentification, autorisation, validation des entrées, codes d'erreur, limitation de débit | Endpoints REST sous `/api/v1/` ; validation Pydantic ; dépendance `get_current_user` ; contrôle de propriété de chaque ressource ; réponses toujours par un schéma `Read`, jamais un modèle SQLAlchemy |
 | **3. Services métier** | Orchestrer un cas d'usage de bout en bout | `IngestionService` (upload → extraction → chapitres), `PlanningService` (génération, replanification), `ProgressService` (suivi, stats dashboard), `CalendarSyncService` (export idempotent), `NotificationService`, `MemoryService`, `SummaryService` |
 | **4. Domaine** | Logique pure, testable sans base ni réseau ni horloge | Estimation du temps (P0-07), détection des chapitres (P0-05), créneaux libres et planificateur (P0-11), calcul de retard/avance (P2-01), courbe d'oubli et stabilité (P2-04), règles de révision espacée (P2-06) |
@@ -196,7 +196,7 @@ Le détail (types, contraintes, règles de gestion, MCD, MLD) est dans [docs/mod
 myplan/
 ├── frontend/              # Couche 1 : Streamlit
 │   ├── app.py             # Point d'entrée et menu (st.navigation)
-│   ├── views/             # Une page par écran, noms en anglais (jamais « pages/ »)
+│   ├── pages/             # Une page par écran, noms en anglais
 │   ├── components/        # Morceaux d'interface réutilisés
 │   └── api/               # Un client HTTP par domaine, seul contact avec FastAPI
 ├── backend/
@@ -264,21 +264,6 @@ Chaque lot possède un domaine **de bout en bout** : router, service, domaine, r
 
 Attribution tirée au sort pour le MVP, puis lots A et D échangés ; revue avant la phase 2.
 
-### Où créer ses pages Streamlit
-
-Chaque page se crée dans **`frontend/views/`**, avec un nom de fichier en anglais (`documents.py`, `plan.py`…). Le menu, ses titres en français et son ordre sont déjà déclarés dans `frontend/app.py` : la page y apparaît d'elle-même dès que son fichier existe, sans modifier `app.py`.
-
-**Ne jamais créer de dossier `frontend/pages/`.** Streamlit exécute directement les fichiers d'un dossier `pages/` voisin du point d'entrée, sans passer par `app.py` ni par la vérification de connexion. Un test fait échouer la CI si ce dossier apparaît (`tests/frontend/test_app.py`).
-
-| Lot | Fichiers dans `frontend/views/` | Client HTTP dans `frontend/api/` |
-|---|---|---|
-| A | `login.py`, `courses.py`, `settings.py` (faits) | `auth_api.py`, `courses_api.py` (faits) |
-| B | `documents.py` | `documents_api.py` |
-| C | `availabilities.py`, `deadlines.py`, `plan.py` | `planning_api.py` |
-| D | `dashboard.py` ; composant `frontend/components/session_card.py` | `progress_api.py` |
-
-Chaque page utilise le cadre commun de `frontend/components/ui.py` (en-tête, erreurs, messages, suppression, dates) et `frontend/security.py` pour afficher un texte saisi ([conventions](docs/conventions_de_nommage.md) §3, [sécurité](docs/securite.md) §3). Les pages du lot A sont des exemples complets à copier.
-
 ### Contrats entre lots
 
 Fixés ensemble en phase 0, dans une seule pull request relue par tous. Ensuite, un changement de contrat passe par une pull request dédiée, relue par les lots concernés.
@@ -305,7 +290,6 @@ Chaque lot code contre ces contrats avec des données de test, sans attendre que
 | Migrations | Une par pull request au plus ; `alembic heads` doit afficher une seule tête avant la fusion ; relue par le lot A |
 | Fichiers partagés | `main.py`, `container.py`, `enums.py`, `errors.py`, `requirements.txt` : ajouts à la fin de la section du lot, une ligne par entrée |
 | Périmètre | Chacun modifie les fichiers de son lot ; toute modification hors périmètre est signalée dans la pull request |
-| Pages Streamlit | Dans `frontend/views/`, jamais dans `frontend/pages/` ; pas de modification de `frontend/app.py` pour ajouter une page |
 
 ### Fin d'une tâche
 
@@ -322,5 +306,5 @@ Une pull request est fusionnée seulement si :
 
 1. Les [conventions de nommage](docs/conventions_de_nommage.md) et les fichiers de contrat ci-dessus.
 2. Le lot concerné et son périmètre de fichiers : l'assistant ne modifie rien en dehors sans le dire.
-3. Les règles qui ne se devinent pas : `user_id` en premier argument de chaque méthode de repository ; `now` en paramètre dans le domaine ; instants en UTC avec fuseau, disponibilités en heure locale ; réponse API toujours par un schéma `Read` ; pages Streamlit dans `frontend/views/` (jamais `pages/`), avec le cadre commun `frontend/components/ui.py` ; en-tête encadré, sections, docstrings et commentaires en français selon le [§12 des conventions](docs/conventions_de_nommage.md#12-commentaires-et-docstrings).
+3. Les règles qui ne se devinent pas : `user_id` en premier argument de chaque méthode de repository ; `now` en paramètre dans le domaine ; instants en UTC avec fuseau, disponibilités en heure locale ; réponse API toujours par un schéma `Read` ; en-tête encadré, sections, docstrings et commentaires en français selon le [§12 des conventions](docs/conventions_de_nommage.md#12-commentaires-et-docstrings).
 4. Le code produit est relu comme un code humain : l'assistant ne connaît que les décisions écrites dans `docs/` et ici.

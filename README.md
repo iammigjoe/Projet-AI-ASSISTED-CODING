@@ -157,16 +157,6 @@ pytest                            # tests
 pip-audit -r requirements.txt     # failles connues dans les dépendances
 ```
 
-Lancer l'application, dans deux terminaux, depuis la racine du projet :
-
-```bash
-alembic upgrade head                        # crée ou met à jour la base data/myplan.db
-uvicorn backend.main:app --reload           # API sur http://localhost:8000 (documentation : /docs)
-streamlit run frontend/app.py               # interface sur http://localhost:8501
-```
-
-Au premier lancement, l'onglet « Créer le compte » de la page de connexion crée le compte unique de l'application.
-
 ## Structure du dépôt
 
 Les dossiers existent, vides : le code n'a pas commencé. Chaque lot y crée ses fichiers en suivant les [conventions de nommage](docs/conventions_de_nommage.md) et la [répartition des tâches](docs/repartition_taches.md). Un `.gitkeep` garde chaque dossier vide dans Git, et peut être supprimé dès que le dossier contient un fichier.
@@ -175,9 +165,8 @@ Les dossiers existent, vides : le code n'a pas commencé. Chaque lot y crée ses
 myplan/
 │
 ├── frontend/                        # Couche 1 : interface Streamlit, sans règle métier ni accès à la base
-│   ├── app.py                       # Point d'entrée : connexion obligatoire, menu (titres français, st.navigation)
-│   ├── views/                       # Pages : un fichier par écran (matières, documents, planning…) ;
-│   │                                #   jamais de dossier « pages/ », exécuté par Streamlit sans connexion
+│   ├── pages/                       # Un fichier par écran (matières, documents, planning, tableau de bord…) ;
+│   │                                #   titres français déclarés dans app.py avec st.navigation
 │   ├── components/                  # Morceaux d'interface réutilisés par plusieurs pages (éditeur de chapitres,
 │   │                                #   carte de session)
 │   └── api/                         # Clients HTTP, un fichier par domaine : seul point de contact avec FastAPI
@@ -223,7 +212,6 @@ myplan/
 ├── requirements.txt                 # Dépendances de l'application, versions figées, ordre alphabétique
 ├── requirements-dev.txt             # Outils de développement : pytest, ruff, pip-audit
 ├── pyproject.toml                   # Configuration de ruff (lint, mise en forme) et de pytest
-├── .streamlit/config.toml           # Réglages Streamlit : pas de trace d'erreur dans le navigateur, XSRF actif
 ├── .env.example                     # Variables d'environnement attendues, sans aucune valeur secrète
 └── .gitignore                       # Exclut .env, la base, les fichiers envoyés et les caches Python
 ```

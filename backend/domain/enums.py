@@ -62,17 +62,6 @@ class DocumentStatus(StrEnum):
     FAILED = "failed"
 
 
-class ExtractionErrorCode(StrEnum):
-    """Code stocké dans documents.error_code quand status = failed (P0-04)."""
-
-    EMPTY_TEXT = "EMPTY_TEXT"
-    SCANNED_PDF = "SCANNED_PDF"
-    TIMEOUT = "TIMEOUT"
-    INVALID_BYTES = "INVALID_BYTES"
-    TOO_LARGE = "TOO_LARGE"
-    UNSUPPORTED_TYPE = "UNSUPPORTED_TYPE"
-
-
 # =============================================================================
 # Lot C : planification
 # =============================================================================

@@ -73,8 +73,6 @@ Le message d'échec est **le même** que l'email existe ou non. Déconnexion et 
 
 ### Pages Streamlit (tous les lots)
 
-Les pages se créent dans `frontend/views/`. Un dossier `frontend/pages/` serait exécuté par Streamlit **sans la vérification de connexion** de `frontend/app.py` : il est interdit, et un test le vérifie.
-
 | Afficher | Avec |
 |---|---|
 | Un texte saisi ou extrait d'un cours, dans `st.markdown`, `st.write`, un titre, un libellé, une infobulle | `escape_markdown(texte)` |

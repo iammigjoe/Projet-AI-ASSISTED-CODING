@@ -23,14 +23,12 @@ MyPlan se découpe bien verticalement : l'ingestion, la planification et le suiv
 
 ### Vue d'ensemble
 
-| Lot | Domaine | Fonctionnalités | Pages Streamlit, dans `frontend/views/` |
+| Lot | Domaine | Fonctionnalités | Pages Streamlit |
 |---|---|---|---|
-| **A. Socle et sécurité** | Comptes, matières, paramètres, base, sécurité transverse, tâches en arrière-plan | P0-01, P0-02, P0-08, P1-04, P1-07, P2-02, P2-07 | `login.py`, `courses.py`, `settings.py`, et le point d'entrée `frontend/app.py` |
+| **A. Socle et sécurité** | Comptes, matières, paramètres, base, sécurité transverse, tâches en arrière-plan | P0-01, P0-02, P0-08, P1-04, P1-07, P2-02, P2-07 | `app.py` (menu), `login.py`, `courses.py`, `settings.py` |
 | **B. Ingestion** | Du fichier aux chapitres estimés | P0-03, P0-04, P0-05, P0-06, P0-07, P1-06, P2-03 | `documents.py` |
 | **C. Planification** | Des disponibilités au planning | P0-09, P0-10, P0-11, P0-12, P1-08, P2-01, P2-06 | `availabilities.py`, `deadlines.py`, `plan.py` |
-| **D. Agenda et suivi** | De la session faite au dashboard et à la mémorisation | P0-13, P1-01, P1-02, P1-03, P1-05, P2-04, P2-05 | `dashboard.py`, et le composant `frontend/components/session_card.py` |
-
-Les pages se créent dans **`frontend/views/`**, jamais dans un dossier `pages/` : Streamlit exécuterait ce dernier sans passer par la vérification de connexion de `frontend/app.py`. Une page apparaît dans le menu dès que son fichier existe ([Spec.md](../Spec.md) §10).
+| **D. Agenda et suivi** | De la session faite au dashboard et à la mémorisation | P0-13, P1-01, P1-02, P1-03, P1-05, P2-04, P2-05 | `dashboard.py`, composant `session_card.py` |
 
 Chaque lot a sept fonctionnalités. La charge n'est pas pour autant identique : le planificateur (C) et la synchronisation Google (D) sont les deux parties les plus difficiles, et c'est pourquoi le socle (A) prend en plus les tâches transverses.
 
