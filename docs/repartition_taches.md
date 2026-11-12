@@ -2,7 +2,7 @@
 
 Proposition de découpage du travail entre les quatre membres de l'équipe, pour que chacun avance sans attendre les autres et que les pull requests se marchent le moins possible dessus. Elle s'appuie sur les priorités des [specs](../Spec.md), l'[architecture](../README.md#architecture), le [modèle de données](modele_donnees.md) et les [diagrammes de classes](diagramme_classes.md).
 
-**C'est une proposition** : les lots ne sont pas encore attribués (§8).
+Les lots du MVP ont été tirés au sort (§8) ; l'attribution sera revue avant la phase 2.
 
 ---
 
@@ -207,7 +207,22 @@ Les specs sont écrites pour être données à un assistant de code. Pour que qu
 
 ## 8. Attribution
 
-À décider ensemble. Chaque lot demande un profil un peu différent :
+### Pour le MVP (phases 0 et 1)
+
+Lots tirés au sort le 12/11/2026, sans tenir compte des profils. L'attribution vaut pour le MVP ; elle sera revue avant la phase 2, avec la rotation des binômes de relecture (§6).
+
+| Lot | Responsable | Ce qu'il livre pour le MVP | Relu par |
+|---|---|---|---|
+| A. Socle et sécurité | Aminata Yasmine Savane | Squelette, CI, modèles et première migration, branche `develop` ; inscription, connexion, JWT, matières, paramètres d'étude, tests d'isolation | Marc Steven Mouthoud (D) |
+| B. Ingestion | Abraham Miguel Tala | `ParsedDocument`, fichiers d'exemple ; upload sécurisé, extraction PDF et Markdown, détection et édition des chapitres, estimation du temps | Aminata Yasmine Savane (A) |
+| C. Planification | Houria Debbioui | Objets de planification ; disponibilités, exceptions, échéances, créneaux libres, planificateur avec message d'infaisabilité, vues liste et calendrier | Abraham Miguel Tala (B) |
+| D. Agenda et suivi | Marc Steven Mouthoud | Fabriques de test ; marquer une session faite ou non faite, composant `session_card.py`, endpoint de progression | Houria Debbioui (C) |
+
+Le lot D est le plus léger du MVP : Google Agenda et le dashboard n'arrivent qu'en phase 2. Son responsable a donc de la marge pour aider C sur les tests du planificateur, la pièce la plus délicate de la phase 1.
+
+### Profils
+
+Si l'équipe préfère réattribuer selon les affinités, chaque lot demande un profil un peu différent :
 
 | Lot | Profil le plus à l'aise |
 |---|---|
@@ -215,10 +230,3 @@ Les specs sont écrites pour être données à un assistant de code. Pour que qu
 | B. Ingestion | Traitement de données et de texte, formats de fichiers, cas limites |
 | C. Planification | Algorithmique, gestion des dates et des fuseaux, tests unitaires minutieux |
 | D. Agenda et suivi | APIs externes, OAuth, visualisation de données |
-
-| Membre | Lot |
-|---|---|
-| Abraham Miguel Tala | à attribuer |
-| Marc Steven Mouthoud | à attribuer |
-| Houria Debbioui | à attribuer |
-| Aminata Yasmine Savane | à attribuer |
