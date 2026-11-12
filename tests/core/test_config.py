@@ -58,15 +58,15 @@ def test_settings_with_invalid_fernet_key_raises(monkeypatch):
         _settings(monkeypatch, MYPLAN_JWT_SECRET_KEY=VALID_SECRET, MYPLAN_FERNET_KEY="not-a-key")
 
 
-def test_settings_reads_external_variables_without_prefix(monkeypatch):
+def test_settings_ignore_unknown_variables(monkeypatch):
     settings = _settings(
         monkeypatch,
         MYPLAN_JWT_SECRET_KEY=VALID_SECRET,
         MYPLAN_FERNET_KEY=Fernet.generate_key().decode(),
-        GOOGLE_CLIENT_ID="client-123",
+        MYPLAN_SOMETHING_ELSE="ignored",
     )
 
-    assert settings.google_client_id == "client-123"
+    assert not hasattr(settings, "something_else")
 
 
 def test_cors_origin_list_splits_and_strips(monkeypatch):
