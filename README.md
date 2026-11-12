@@ -119,7 +119,7 @@ Le détail et les critères d'acceptation de chaque fonctionnalité sont dans le
 
 ## Questions ouvertes
 
-- Un seul utilisateur ou plusieurs comptes dès le départ ? Le choix pèse sur l'authentification et l'isolation des données.
+- ~~Un seul utilisateur ou plusieurs comptes dès le départ ?~~ Tranché : un seul compte au départ, avec `user_id` conservé partout pour en ouvrir d'autres plus tard.
 - Les résumés passent-ils par un LLM externe ? Si oui, les cours quittent le serveur, et il faut le dire à l'utilisateur.
 - Quel canal de notification en premier : email, Telegram, autre ?
 - Les sessions replanifiées remplacent-elles les événements Google déjà créés, ou sont-elles d'abord proposées ?

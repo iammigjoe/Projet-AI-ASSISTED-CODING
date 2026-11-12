@@ -388,6 +388,7 @@ Deux familles de routes échappent aussi au modèle « ressource au pluriel », 
 |---|---|
 | `400` | Requête mal formée |
 | `401` | Jeton absent, invalide ou expiré |
+| `403` | Action fermée à tous, quel que soit l'utilisateur (inscription quand le compte existe déjà) |
 | `404` | Ressource inexistante **ou appartenant à un autre utilisateur** |
 | `409` | Conflit d'état (activer un planning déjà archivé) |
 | `413` | Fichier trop lourd |
@@ -429,7 +430,7 @@ Erreur : toujours la même forme, avec un code stable que le frontend peut teste
 | `message` | Français, lisible tel quel par l'étudiant, sans détail technique |
 | `details` | Optionnel, données structurées propres au code |
 
-Codes connus : `VALIDATION_ERROR`, `NOT_FOUND`, `UNAUTHORIZED`, `FILE_TOO_LARGE`, `UNSUPPORTED_FILE_TYPE`, `EXTRACTION_FAILED`, `PLAN_NOT_FEASIBLE`, `GOOGLE_NOT_CONNECTED`, `RATE_LIMITED`. Un nouveau code s'ajoute dans `backend/api/errors.py`, à un seul endroit.
+Codes connus : `VALIDATION_ERROR`, `NOT_FOUND`, `UNAUTHORIZED`, `FILE_TOO_LARGE`, `UNSUPPORTED_FILE_TYPE`, `EXTRACTION_FAILED`, `PLAN_NOT_FEASIBLE`, `GOOGLE_NOT_CONNECTED`, `RATE_LIMITED`, `REGISTRATION_CLOSED`. Un nouveau code s'ajoute dans `backend/api/errors.py`, à un seul endroit.
 
 ---
 
