@@ -9,7 +9,7 @@ Responsabilités :
     - Fixer les noms des contraintes et index (naming_convention), pour
       qu'Alembic génère les mêmes noms sur toutes les machines (conventions §4).
     - Fournir les colonnes created_at et updated_at de toutes les tables d'entité.
-    - Fournir check_in() pour les contraintes CHECK construites depuis une énumération.
+    - Fournir enum_type() pour les colonnes à valeurs finies et leur contrainte CHECK.
 
 Utilisé par :
     backend/db/models, backend/db/migrations/env.py
@@ -26,7 +26,7 @@ Lot :
 from datetime import datetime
 from enum import StrEnum
 
-from sqlalchemy import CheckConstraint, MetaData
+from sqlalchemy import Enum, MetaData
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from backend.db.types import UtcDateTime, utc_now
@@ -61,22 +61,31 @@ class TimestampMixin:
     updated_at: Mapped[datetime] = mapped_column(UtcDateTime, default=utc_now, onupdate=utc_now)
 
 
-def check_in(column: str, enum: type[StrEnum], name: str | None = None) -> CheckConstraint:
-    """Construit un CHECK (column IN (...)) à partir d'une énumération.
+def enum_type(enum: type[StrEnum], column: str) -> Enum:
+    """Construit le type d'une colonne à valeurs finies, avec sa contrainte CHECK.
 
-    La liste des valeurs vient de l'énumération Python : un seul endroit à
-    modifier (modele_donnees.md §5).
+    Les valeurs stockées sont celles de l'énumération (« done », pas « DONE »),
+    et la liste autorisée en base vient de l'énumération Python : un seul
+    endroit à modifier (modele_donnees.md §5). La lecture rend un membre de
+    l'énumération.
 
     Args:
-        column: Nom de la colonne vérifiée.
         enum: Énumération dont les valeurs sont autorisées.
-        name: Nom de la règle ; par défaut « <column>_values ».
+        column: Nom de la colonne ; la contrainte s'appelle
+            ck_<table>_<column>_values (naming_convention).
 
     Returns:
-        La contrainte, nommée ck_<table>_<name> par la naming_convention.
+        Le type SQLAlchemy, stocké en texte.
 
     Example:
-        __table_args__ = (check_in("status", SessionStatus),)
+        status: Mapped[SessionStatus] = mapped_column(enum_type(SessionStatus, "status"))
     """
-    values = ", ".join(f"'{member.value}'" for member in enum)
-    return CheckConstraint(f"{column} IN ({values})", name=name or f"{column}_values")
+    return Enum(
+        enum,
+        name=f"{column}_values",
+        native_enum=False,
+        create_constraint=True,
+        validate_strings=True,
+        length=max(len(member.value) for member in enum),
+        values_callable=lambda members: [member.value for member in members],
+    )
