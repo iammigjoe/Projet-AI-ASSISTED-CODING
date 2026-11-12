@@ -19,9 +19,9 @@ from sqlalchemy.exc import IntegrityError, StatementError
 
 from backend.db.models import (
     Availability,
-    AvailabilityException,
     Chapter,
     Course,
+    Deadline,
     Document,
     Plan,
     StudySession,
@@ -29,8 +29,8 @@ from backend.db.models import (
     UserSettings,
 )
 from backend.domain.enums import (
+    DeadlineType,
     DocumentType,
-    ExceptionKind,
     PlanOrigin,
     PlanStatus,
     SessionStatus,
@@ -77,8 +77,10 @@ def _chapter(session, course) -> Chapter:
     return chapter
 
 
-def _plan(session, user, version=1, status=PlanStatus.DRAFT) -> Plan:
-    plan = Plan(user_id=user.id, version=version, status=status, origin=PlanOrigin.GENERATED)
+def _plan(session, user, version=1, status=PlanStatus.DRAFT, week="2026-W47") -> Plan:
+    plan = Plan(
+        user_id=user.id, version=version, week=week, status=status, origin=PlanOrigin.GENERATED
+    )
     session.add(plan)
     session.flush()
     return plan
@@ -107,10 +109,10 @@ def test_user_settings_defaults_match_spec(db_session):
     db_session.add(settings)
     db_session.flush()
 
-    assert (settings.reading_speed_wpm, settings.max_session_min, settings.break_min) == (
+    assert (settings.reading_speed_wpm, settings.session_minutes, settings.break_min) == (
         200,
-        90,
-        15,
+        60,
+        0,
     )
     assert settings.mastery_goal == "standard"
     assert settings.notif_prefs == {}
@@ -118,9 +120,9 @@ def test_user_settings_defaults_match_spec(db_session):
 
 def test_user_settings_with_session_too_long_is_rejected(db_session):
     user = _user(db_session)
-    db_session.add(UserSettings(user_id=user.id, max_session_min=300))
+    db_session.add(UserSettings(user_id=user.id, session_minutes=300))
 
-    with pytest.raises(IntegrityError, match="max_session_range"):
+    with pytest.raises(IntegrityError, match="session_minutes_range"):
         db_session.flush()
 
 
@@ -163,26 +165,10 @@ def test_chapter_effective_min_prefers_override(db_session):
 def test_availability_ending_before_start_is_rejected(db_session):
     user = _user(db_session)
     db_session.add(
-        Availability(
-            user_id=user.id,
-            weekday=0,
-            starts_local=time(20, 0),
-            ends_local=time(18, 0),
-            valid_from=date(2026, 9, 1),
-        )
+        Availability(user_id=user.id, weekday=0, starts_local=time(20, 0), ends_local=time(18, 0))
     )
 
     with pytest.raises(IntegrityError, match="ends_after_starts"):
-        db_session.flush()
-
-
-def test_whole_day_exception_can_only_be_blocked(db_session):
-    user = _user(db_session)
-    db_session.add(
-        AvailabilityException(user_id=user.id, date=date(2026, 12, 25), kind=ExceptionKind.ADDED)
-    )
-
-    with pytest.raises(IntegrityError, match="whole_day_blocked"):
         db_session.flush()
 
 
@@ -191,12 +177,27 @@ def test_whole_day_exception_can_only_be_blocked(db_session):
 # =============================================================================
 
 
-def test_second_active_plan_for_same_user_is_rejected(db_session):
+def test_second_active_plan_for_same_week_is_rejected(db_session):
     user = _user(db_session)
     _plan(db_session, user, version=1, status=PlanStatus.ACTIVE)
 
-    with pytest.raises(IntegrityError, match="plans.user_id"):
+    with pytest.raises(IntegrityError, match="plans.user_id, plans.week"):
         _plan(db_session, user, version=2, status=PlanStatus.ACTIVE)
+
+
+def test_active_plans_of_different_weeks_coexist(db_session):
+    user = _user(db_session)
+    _plan(db_session, user, version=1, status=PlanStatus.ACTIVE, week="2026-W47")
+    _plan(db_session, user, version=2, status=PlanStatus.ACTIVE, week="2026-W48")
+
+    assert db_session.scalar(select(func.count()).select_from(Plan)) == 2
+
+
+def test_badly_formatted_week_is_rejected(db_session):
+    user = _user(db_session)
+
+    with pytest.raises(IntegrityError, match="week_format"):
+        _plan(db_session, user, week="2026-47")
 
 
 def test_each_user_can_have_one_active_plan(db_session):
@@ -248,7 +249,9 @@ def test_session_status_is_stored_as_lowercase_value(db_session):
 
 def test_unknown_enum_value_is_rejected(db_session):
     user = _user(db_session)
-    db_session.add(Plan(user_id=user.id, version=1, status="finished", origin="generated"))
+    db_session.add(
+        Plan(user_id=user.id, version=1, week="2026-W47", status="finished", origin="generated")
+    )
 
     with pytest.raises(StatementError):
         db_session.flush()
@@ -278,3 +281,44 @@ def test_deleting_user_deletes_everything_below(db_session):
     for table in ("courses", "documents", "chapters", "plans", "study_sessions"):
         remaining = db_session.execute(text(f"SELECT count(*) FROM {table}")).scalar_one()  # noqa: S608
         assert remaining == 0, table
+
+
+# =============================================================================
+# Échéances
+# =============================================================================
+
+
+def test_deadline_weight_above_100_is_rejected(db_session):
+    user = _user(db_session)
+    course = _course(db_session, user)
+    db_session.add(
+        Deadline(
+            user_id=user.id,
+            course_id=course.id,
+            title="Partiel",
+            type=DeadlineType.EXAM,
+            due_date=date(2026, 11, 27),
+            weight=120,
+        )
+    )
+
+    with pytest.raises(IntegrityError, match="weight_range"):
+        db_session.flush()
+
+
+def test_deadline_type_outside_contract_is_rejected(db_session):
+    user = _user(db_session)
+    course = _course(db_session, user)
+    db_session.add(
+        Deadline(
+            user_id=user.id,
+            course_id=course.id,
+            title="Projet",
+            type="project",
+            due_date=date(2026, 11, 27),
+            weight=50,
+        )
+    )
+
+    with pytest.raises(StatementError):
+        db_session.flush()
