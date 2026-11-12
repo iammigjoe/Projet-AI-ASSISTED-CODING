@@ -1,0 +1,27 @@
+# Secrets
+.env
+
+# Base SQLite et fichiers uploadés : jamais versionnés
+data/*
+!data/.gitkeep
+storage/*
+!storage/.gitkeep
+*.db
+*.db-wal
+*.db-shm
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Éditeurs et système
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

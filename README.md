@@ -147,7 +147,8 @@ Le détail et les critères d'acceptation de chaque fonctionnalité sont dans le
 myplan/
 ├── frontend/              # Couche 1 : Streamlit
 │   ├── app.py
-│   ├── pages/
+│   ├── pages/             # Une page par écran, titres français déclarés dans app.py
+│   ├── components/        # Morceaux d'interface réutilisés
 │   └── api/               # Clients HTTP par domaine, seul contact avec FastAPI
 ├── backend/
 │   ├── api/               # Couche 2 : routers, schémas, dépendances (auth)
