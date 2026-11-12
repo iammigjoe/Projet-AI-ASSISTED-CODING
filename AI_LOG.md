@@ -3,7 +3,7 @@
 Une entrée par échange marquant avec l'IA. Les échecs comptent : on les note tels qu'ils se sont produits, avec la façon dont on les a repérés.
 
 **Comment on vérifie ce que produit l'IA** :
-- **Tests** : 202 tests pytest, lancés après chaque modification. Ils couvrent les cas limites, la sécurité et l'isolation entre utilisateurs.
+- **Tests** : 231 tests pytest, lancés après chaque modification. Ils couvrent les cas limites, la sécurité et l'isolation entre utilisateurs.
 - **Exécution réelle** : migrations appliquées sur une base qui contient déjà des données, application lancée, appels à l'API.
 - **Relecture** : chaque fichier généré est relu.
 - **Vérification automatique** : `ruff`, `pip-audit` et la CI.
@@ -120,3 +120,23 @@ Chaque membre ajoute ses propres entrées pendant le Jour 2.
 - **Vérification :** relecture de chaque alerte.
 - **Décision :** gardé avec un `# noqa: S105` justifié en commentaire, ligne par ligne. La règle n'est pas désactivée globalement, pour qu'un vrai secret en dur soit toujours signalé.
 - **Échec de l'IA ? Non**, mais un bon exemple de sortie d'outil à ne pas accepter ni rejeter en bloc.
+
+## Entrée 9 : intégrer le travail d'un coéquipier sans le casser
+
+- **Quand / qui :** 12/11/2026 — Marc
+- **Outil et mode :** Claude Code
+- **Objectif :** fusionner l'alignement StudyPlan dans `develop`.
+- **Prompt :**
+  > oui mais Abraham Miguel a merge sur develop fais attetion
+- **Résultat :**
+  - **Branche cible :** `develop` n'avait pas bougé. La fusion d'Abraham (lot B) était sur **`main`** (PR #7).
+  - **Base de départ :** sa branche partait de `develop` d'avant l'alignement.
+  - **Conflit invisible :** son lecteur PDF utilisait PyMuPDF (`fitz`), que l'alignement venait de retirer des dépendances. Git fusionnait sans conflit de texte, mais deux modules de tests ne se chargeaient plus.
+- **Vérification :**
+  - **Fusion d'essai** (`git merge --no-commit`) sur la branche d'alignement, pas sur `develop`.
+  - **Contrôles :** `ruff` et la suite complète de tests.
+  - **Repérage préalable :** lecture des branches de Houria et d'Aminata, qui emploient encore l'ancien schéma (`AvailabilityException`, `importance`, `google_event_id`).
+- **Décision :**
+  - **Fusion telle quelle :** sa branche est fusionnée sans modification, dans un commit à part.
+  - **Portage du lecteur PDF sur `pypdf`** dans un second commit, sans changer son contrat. Ses tests et fichiers d'exemple passent sans modification : 231 tests verts.
+- **Échec de l'IA ? Non, évité.** Une fusion directe aurait cassé la CI de toute l'équipe sur `develop`. Leçon : une fusion qui passe sans conflit de texte peut quand même casser le code ; il faut lancer les tests sur le résultat avant de pousser.

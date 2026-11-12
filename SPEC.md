@@ -50,11 +50,11 @@ En plus du sujet, et déjà en place : **compte protégé** (inscription du comp
 |---|---|---|---|---|
 | P0-01 | A | Compte et authentification | **Un seul compte** : inscription ouverte tant qu'aucun compte n'existe, puis fermée (403). Connexion obligatoire pour toutes les routes du contrat. | ✅ |
 | P0-02 | A | Matières | Liste avec avancement (`hours_total`, `hours_done`, `progress`), modification du nom, de la couleur, de la difficulté (1 à 5), suppression en cascade. | ✅ |
-| P0-03 | B | Import d'un cours | `POST /courses` multipart : PDF ou Markdown → matière + document + chapitres. | à faire |
-| P0-04 | B | Extraction du texte | `pypdf` pour le PDF, `markdown-it-py` pour le Markdown ; erreur claire si le PDF est vide ou scanné. | à faire |
-| P0-05 | B | Détection des chapitres | Markdown : titres `#`/`##` (le `#` de niveau 1 donne le nom de la matière). PDF : signets, sinon heuristique. Détection pure, testable sans fichier. | à faire |
+| P0-03 | B | Import d'un cours | `POST /courses` multipart : PDF ou Markdown → matière + document + chapitres. | Validation et stockage faits ; route et enregistrement en base à faire |
+| P0-04 | B | Extraction du texte | `pypdf` pour le PDF, `markdown-it-py` pour le Markdown ; erreur claire si le PDF est vide ou scanné. | ✅ |
+| P0-05 | B | Détection des chapitres | Markdown : titres `#`/`##` (le `#` de niveau 1 donne le nom de la matière). PDF : signets, sinon heuristique. Détection pure, testable sans fichier. | ✅ |
 | P0-06 | B | Correction des chapitres | Renommer, fusionner, scinder, supprimer avant de planifier. | à faire |
-| P0-07 | B | Charge en heures | Formule du bloc 1, valeur modifiable à la main. | à faire |
+| P0-07 | B | Charge en heures | Formule du bloc 1, valeur modifiable à la main. | Calcul fait ; modification à la main à faire |
 | P0-08 | A | Profil d'étude | Vitesse de lecture, durée des sessions, pause, niveau visé. | ✅ |
 | P0-09 | C | Disponibilités | `PUT /availability` remplace tous les créneaux ; heures **locales**, pas UTC. | à faire |
 | P0-10 | C | Échéances | `POST/GET/DELETE /deadlines` ; date passée → 422. | à faire |
@@ -186,7 +186,7 @@ Le détail est dans [docs/modele_donnees.md](docs/modele_donnees.md). Toutes les
 
 ### Ce qui est testé
 
-Le sujet demande au moins 10 tests pertinents. Au 12/11/2026 : **202 tests verts** sur le socle, la sécurité, l'authentification, les matières et le frontend.
+Le sujet demande au moins 10 tests pertinents. Au 12/11/2026 : **231 tests verts** sur le socle, la sécurité, l'authentification, les matières, le frontend et l'import (lecteurs, détection, estimation).
 
 | Comportement | Où | Cas limites couverts |
 |---|---|---|
@@ -250,9 +250,9 @@ Chaque page utilise `frontend/components/ui.py` (en-tête, erreurs, messages, su
 | `README.md` : lancer back et front en moins de 5 min | ✅ |
 | `SPEC.md` écrit avant le code | ✅ (ce fichier) |
 | `.github/copilot-instructions.md` et `CLAUDE.md` avec le contrat d'API | ✅ |
-| Au moins 10 tests pytest pertinents, tous verts | ✅ (202) ; à compléter pour le planificateur et le `.ics` |
+| Au moins 10 tests pytest pertinents, tous verts | ✅ (231) ; à compléter pour le planificateur et le `.ics` |
 | `AI_LOG.md` : au moins 5 entrées, dont un échec de l'IA | ✅ ; chaque membre ajoute les siennes |
-| Historique Git propre, **chaque membre commite** | En cours : à ce jour, seul le lot A a commité |
+| Historique Git propre, **chaque membre commite** | En cours : lots A et B dans `develop` ; C et D ont commencé sur leurs branches |
 | Démo live : import → planning → `.ics` → tableau de bord | Dépend des lots B, C, D |
 
 ---
