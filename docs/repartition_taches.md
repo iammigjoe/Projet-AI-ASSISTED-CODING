@@ -103,7 +103,7 @@ La phase 0 tranche aussi les questions qui bloqueraient un lot plus tard :
 |---|---|---|
 | Échéances sans chapitres, chapitres sans échéance | Le planificateur (C), dès la phase 1 | [modele_donnees.md](modele_donnees.md) §6.6 |
 | Modifier un chapitre déjà étudié | L'édition des chapitres (B), dès la phase 1 | [modele_donnees.md](modele_donnees.md) §6.5 |
-| Un compte ou plusieurs ; canal de notification ; LLM externe ou non | A et B | [Spec.md](../Spec.md) §9 |
+| ~~Un compte ou plusieurs~~ (tranché : un seul au départ) ; canal de notification ; LLM externe ou non | A et B | [Spec.md](../Spec.md) §9 |
 | Reprise de `google_event_id` et agenda dédié | La synchronisation (D), en phase 2 : à trancher au plus tard en fin de phase 1 | [modele_donnees.md](modele_donnees.md) §6.1 et §6.4 |
 
 La branche `develop`, où arrivent toutes les pull requests, n'existe pas encore : A la crée en phase 0 et protège `main` et `develop` sur GitHub.

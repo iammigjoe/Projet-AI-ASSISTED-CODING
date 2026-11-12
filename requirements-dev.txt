@@ -1,0 +1,6 @@
+# Outils de développement : tests, qualité, audit des dépendances.
+# Installe aussi les dépendances de l'application.
+-r requirements.txt
+pip-audit==2.10.1
+pytest==9.2.0
+ruff==0.17.4
