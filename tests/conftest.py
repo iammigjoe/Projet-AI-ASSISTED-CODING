@@ -17,10 +17,12 @@ Lot :
 """
 
 import os
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 
 import pytest
 from cryptography.fernet import Fernet
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -64,3 +66,50 @@ def db_session(engine: Engine) -> Iterator[Session]:
     yield session
     session.rollback()
     session.close()
+
+
+# =============================================================================
+# API
+# =============================================================================
+
+
+@pytest.fixture
+def app(engine: Engine) -> FastAPI:
+    """Application FastAPI branchée sur la base de test du test en cours."""
+    from backend.api.deps import get_db
+    from backend.main import create_app
+
+    test_app = create_app()
+    factory = sessionmaker(bind=engine, expire_on_commit=False)
+
+    def _test_db() -> Iterator[Session]:
+        session = factory()
+        try:
+            yield session
+        except Exception:
+            session.rollback()
+            raise
+        finally:
+            session.close()
+
+    test_app.dependency_overrides[get_db] = _test_db
+    return test_app
+
+
+@pytest.fixture
+def client(app: FastAPI) -> Iterator[TestClient]:
+    """Client HTTP de test ; les erreurs imprévues deviennent des réponses 500."""
+    with TestClient(app, raise_server_exceptions=False) as test_client:
+        yield test_client
+
+
+@pytest.fixture
+def auth_headers() -> Callable[[int], dict[str, str]]:
+    """Fabrique l'en-tête Authorization d'un utilisateur : auth_headers(user.id)."""
+    from backend.core.clock import system_clock
+    from backend.core.security import create_access_token
+
+    def _headers(user_id: int) -> dict[str, str]:
+        return {"Authorization": f"Bearer {create_access_token(user_id, system_clock())}"}
+
+    return _headers

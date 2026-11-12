@@ -430,7 +430,7 @@ Erreur : toujours la même forme, avec un code stable que le frontend peut teste
 | `message` | Français, lisible tel quel par l'étudiant, sans détail technique |
 | `details` | Optionnel, données structurées propres au code |
 
-Codes connus : `VALIDATION_ERROR`, `NOT_FOUND`, `UNAUTHORIZED`, `FILE_TOO_LARGE`, `UNSUPPORTED_FILE_TYPE`, `EXTRACTION_FAILED`, `PLAN_NOT_FEASIBLE`, `GOOGLE_NOT_CONNECTED`, `RATE_LIMITED`, `REGISTRATION_CLOSED`. Un nouveau code s'ajoute dans `backend/api/errors.py`, à un seul endroit.
+Codes connus : `VALIDATION_ERROR`, `NOT_FOUND`, `UNAUTHORIZED`, `FILE_TOO_LARGE`, `UNSUPPORTED_FILE_TYPE`, `EXTRACTION_FAILED`, `PLAN_NOT_FEASIBLE`, `GOOGLE_NOT_CONNECTED`, `RATE_LIMITED`, `REGISTRATION_CLOSED`, `METHOD_NOT_ALLOWED`, `CONFLICT`, `INTERNAL_ERROR`, et `DOMAIN_ERROR` pour une erreur métier sans code plus précis. Un nouveau code s'ajoute dans `ErrorCode` (`backend/api/errors.py`), à un seul endroit ; une erreur métier se déclare dans `backend/domain/errors.py` avec le même code.
 
 ---
 
