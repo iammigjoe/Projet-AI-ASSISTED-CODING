@@ -32,7 +32,13 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from backend.domain.errors import DomainError, NotFoundError, RegistrationClosedError
+from backend.domain.errors import (
+    DomainError,
+    InvalidCredentialsError,
+    NotFoundError,
+    RegistrationClosedError,
+    TooManyLoginAttemptsError,
+)
 
 # =============================================================================
 # Constantes
@@ -75,6 +81,8 @@ class ErrorCode(StrEnum):
 _DOMAIN_STATUS: dict[type[DomainError], int] = {
     NotFoundError: status.HTTP_404_NOT_FOUND,
     RegistrationClosedError: status.HTTP_403_FORBIDDEN,
+    InvalidCredentialsError: status.HTTP_401_UNAUTHORIZED,
+    TooManyLoginAttemptsError: status.HTTP_429_TOO_MANY_REQUESTS,
 }
 
 # Erreurs HTTP levées par Starlette elle-même (route inconnue, méthode refusée).
@@ -160,8 +168,13 @@ async def _handle_api_error(_request: Request, error: ApiError) -> JSONResponse:
 
 async def _handle_domain_error(_request: Request, error: DomainError) -> JSONResponse:
     status_code = _DOMAIN_STATUS.get(type(error), status.HTTP_422_UNPROCESSABLE_CONTENT)
+    headers = None
+    if isinstance(error, TooManyLoginAttemptsError):
+        headers = {"Retry-After": str(error.retry_after_seconds)}
     return JSONResponse(
-        error_body(error.code, error.message, error.details), status_code=status_code
+        error_body(error.code, error.message, error.details),
+        status_code=status_code,
+        headers=headers,
     )
 
 

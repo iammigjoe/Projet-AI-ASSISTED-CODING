@@ -33,6 +33,7 @@ from backend.api.middleware import (
     SecurityHeadersMiddleware,
 )
 from backend.api.rate_limit import handle_rate_limit_exceeded, limiter
+from backend.api.routers import auth
 from backend.core.config import get_settings
 
 # =============================================================================
@@ -83,7 +84,7 @@ def create_app() -> FastAPI:
     app.add_exception_handler(RateLimitExceeded, handle_rate_limit_exceeded)  # type: ignore[arg-type]
 
     # --- Routers : une ligne par router, ordre alphabétique -----------------
-    # app.include_router(courses.router, prefix=API_PREFIX)
+    app.include_router(auth.router, prefix=API_PREFIX)
 
     return app
 

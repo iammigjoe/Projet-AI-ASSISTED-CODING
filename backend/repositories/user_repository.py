@@ -8,6 +8,7 @@ Objectif :
 Responsabilités :
     - Ne jamais renvoyer un compte dont la suppression est demandée (deleted_at).
     - Chercher un compte par email en minuscules, comme il est stocké.
+    - Créer un compte toujours avec ses paramètres d'étude par défaut.
 
 Utilisé par :
     backend.api.deps (get_current_user), AuthService.
@@ -23,7 +24,7 @@ Lot :
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from backend.db.models import User
+from backend.db.models import User, UserSettings
 
 # =============================================================================
 # API publique
@@ -60,8 +61,28 @@ class UserRepository:
         """
         return self._session.scalar(select(func.count()).select_from(User)) or 0
 
-    def add(self, user: User) -> User:
-        """Ajoute un compte à la session ; l'appelant valide la transaction."""
+    def create(self, email: str, password_hash: str, timezone: str) -> User:
+        """Crée un compte et ses paramètres d'étude par défaut.
+
+        Un compte a toujours ses paramètres : les services n'ont jamais à
+        tester leur absence. L'appelant valide la transaction.
+
+        Args:
+            email: Email déjà normalisé (minuscules).
+            password_hash: Hachage argon2, jamais le mot de passe.
+            timezone: Nom IANA du fuseau de l'étudiant.
+
+        Returns:
+            Le compte créé, avec son identifiant.
+        """
+        user = User(email=email, password_hash=password_hash, timezone=timezone)
         self._session.add(user)
         self._session.flush()
+        self._session.add(UserSettings(user_id=user.id))
+        self._session.flush()
         return user
+
+    def revoke_tokens(self, user: User) -> None:
+        """Révoque tous les jetons émis pour ce compte (déconnexion partout)."""
+        user.token_version += 1
+        self._session.flush()

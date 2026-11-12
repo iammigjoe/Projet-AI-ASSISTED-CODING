@@ -365,7 +365,7 @@ Deux familles de routes échappent aussi au modèle « ressource au pluriel », 
 
 | Routes | Pourquoi |
 |---|---|
-| `POST /api/v1/auth/register`, `/login`, `/refresh` | Flux d'authentification, pas des ressources |
+| `POST /api/v1/auth/register`, `/login`, `/refresh`, `/logout` ; `GET /api/v1/auth/me` | Flux d'authentification, pas des ressources |
 | `GET /api/v1/google/authorize`, `GET /api/v1/google/callback`, `DELETE /api/v1/google/credentials` | Flux OAuth de Google ; l'URL de retour est enregistrée dans la console Google (`GOOGLE_REDIRECT_URI`) |
 | `GET /api/v1/progress` | Vue calculée pour le dashboard, au singulier : elle n'a pas d'identifiant et ne se crée pas |
 

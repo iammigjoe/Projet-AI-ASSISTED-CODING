@@ -12,6 +12,7 @@ Responsabilités :
       direction (U+202E…), qui servent à déguiser un nom de fichier ou un lien.
     - Borner chaque longueur : aucun texte reçu n'est illimité.
     - Normaliser les emails (minuscules) avant toute comparaison.
+    - Vérifier qu'un fuseau horaire existe dans la base IANA.
 
 Notes :
     Ce nettoyage ne remplace pas l'échappement à l'affichage : le texte reste
@@ -33,6 +34,7 @@ Lot :
 import re
 import unicodedata
 from typing import Annotated
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import AfterValidator, Field
 
@@ -69,6 +71,15 @@ def _clean_single_line(value: str) -> str:
     return value
 
 
+def _check_timezone(value: str) -> str:
+    value = _clean_single_line(value)
+    try:
+        ZoneInfo(value)
+    except (ZoneInfoNotFoundError, ValueError) as error:
+        raise ValueError("Fuseau horaire inconnu (exemple : Europe/Paris).") from error
+    return value
+
+
 def _clean_email(value: str) -> str:
     value = _clean_single_line(value).lower()
     if len(value) > EMAIL_MAX_LENGTH or not _EMAIL.match(value):
@@ -100,6 +111,9 @@ class MultilineText:
 
 
 EmailAddress = Annotated[str, AfterValidator(_clean_email)]
+
+# Nom IANA (« Europe/Paris »), pas un décalage : un décalage ne suit pas les changements d'heure.
+TimezoneName = Annotated[str, Field(max_length=64), AfterValidator(_check_timezone)]
 
 # Mot de passe : jamais nettoyé (un espace en bord compte), seulement borné ; la
 # politique complète est dans backend/domain/password_policy.py.

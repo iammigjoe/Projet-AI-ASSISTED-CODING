@@ -33,6 +33,7 @@ Une protection fournie par le socle ne protège rien si une route ou une page la
 |---|---|---|
 | Compteurs de limitation et d'échecs **en mémoire** | Remis à zéro au redémarrage ; ne marchent que sur un seul processus | Si l'API tourne sur plusieurs processus : stockage partagé (Redis) |
 | Adresse IP vue **directement** | Derrière un reverse proxy, toutes les requêtes semblent venir du proxy et partagent la même limite | Au déploiement : `uvicorn --proxy-headers --forwarded-allow-ips=<IP du proxy>` |
+| Jeton de rafraîchissement **réutilisable** jusqu'à son expiration (7 jours) | Un jeton de rafraîchissement volé reste utilisable tant que l'étudiant ne se déconnecte pas ; la déconnexion le révoque | Rotation stricte (jeton à usage unique), qui demande de stocker les jetons émis |
 | Pas de **double authentification** | Un mot de passe volé suffit | P3, si l'application devient multi-comptes |
 | Pas de **détection de mots de passe fuités** (Have I Been Pwned) | Seule une courte liste de mots de passe courants est refusée | Appel réseau à ajouter derrière une interface, si l'équipe le juge utile |
 
@@ -48,7 +49,7 @@ Une protection fournie par le socle ne protège rien si une route ou une page la
 
 ### Connexion et inscription (lot A)
 
-La route de connexion combine les trois protections, dans cet ordre :
+En place dans `backend/api/routers/auth.py` et `backend/services/auth_service.py`. La route de connexion combine les trois protections, dans cet ordre :
 
 ```python
 @router.post("/auth/login")

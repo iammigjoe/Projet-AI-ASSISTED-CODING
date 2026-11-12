@@ -60,3 +60,33 @@ class RegistrationClosedError(DomainError):
     """Inscription refusée : le compte unique existe déjà (modele_donnees.md §6.7)."""
 
     code: ClassVar[str] = "REGISTRATION_CLOSED"
+
+
+class InvalidCredentialsError(DomainError):
+    """Email ou mot de passe incorrect ; même erreur que l'email existe ou non."""
+
+    code: ClassVar[str] = "INVALID_CREDENTIALS"
+
+
+class TooManyLoginAttemptsError(DomainError):
+    """Trop d'échecs de connexion récents : l'essai doit attendre."""
+
+    code: ClassVar[str] = "TOO_MANY_LOGIN_ATTEMPTS"
+
+    def __init__(self, retry_after_seconds: int) -> None:
+        """Crée l'erreur.
+
+        Args:
+            retry_after_seconds: Attente avant le prochain essai permis.
+        """
+        super().__init__(
+            "Trop de tentatives de connexion. Réessayez dans quelques instants.",
+            {"retry_after_seconds": retry_after_seconds},
+        )
+        self.retry_after_seconds = retry_after_seconds
+
+
+class WeakPasswordError(DomainError):
+    """Mot de passe refusé par la politique (backend/domain/password_policy.py)."""
+
+    code: ClassVar[str] = "WEAK_PASSWORD"  # noqa: S105  # code d'erreur, pas un secret
