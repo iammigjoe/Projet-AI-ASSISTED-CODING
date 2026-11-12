@@ -119,7 +119,7 @@ Le détail et les critères d'acceptation de chaque fonctionnalité sont dans le
 
 ## Questions ouvertes
 
-- Un seul utilisateur ou plusieurs comptes dès le départ ? Le choix pèse sur l'authentification et l'isolation des données.
+- ~~Un seul utilisateur ou plusieurs comptes dès le départ ?~~ Tranché : un seul compte au départ, avec `user_id` conservé partout pour en ouvrir d'autres plus tard.
 - Les résumés passent-ils par un LLM externe ? Si oui, les cours quittent le serveur, et il faut le dire à l'utilisateur.
 - Quel canal de notification en premier : email, Telegram, autre ?
 - Les sessions replanifiées remplacent-elles les événements Google déjà créés, ou sont-elles d'abord proposées ?
@@ -132,7 +132,7 @@ Le détail et les critères d'acceptation de chaque fonctionnalité sont dans le
 | Interface | Streamlit, `streamlit-calendar` |
 | API | FastAPI, Pydantic v2, Uvicorn |
 | Base de données | SQLite, SQLAlchemy 2.x, Alembic |
-| Authentification | `pyjwt`, `passlib[argon2]` |
+| Authentification | `pyjwt`, `argon2-cffi` |
 | PDF et Markdown | PyMuPDF, `markdown-it-py` |
 | Google | `google-auth-oauthlib`, `google-api-python-client` |
 | Tâches en arrière-plan | APScheduler |
@@ -140,6 +140,22 @@ Le détail et les critères d'acceptation de chaque fonctionnalité sont dans le
 | Rate limiting | `slowapi` |
 | Résumés | API Anthropic ou autre, derrière une interface |
 | Tests | pytest, httpx |
+
+## Installation (développement)
+
+Python 3.12 ou plus récent. Les versions de toutes les dépendances sont figées dans `requirements.txt` (application) et `requirements-dev.txt` (tests et qualité).
+
+```bash
+python -m venv .venv
+.venv\Scripts\activate            # Windows ; sous macOS ou Linux : source .venv/bin/activate
+pip install -r requirements-dev.txt
+cp .env.example .env              # puis remplir les valeurs vides
+
+ruff check .                      # lint
+ruff format --check .             # mise en forme
+pytest                            # tests
+pip-audit -r requirements.txt     # failles connues dans les dépendances
+```
 
 ## Structure du dépôt
 
@@ -193,6 +209,9 @@ myplan/
 │
 ├── Spec.md                          # Spécifications fonctionnelles : quoi construire, par qui, dans quel ordre
 ├── README.md                        # Présentation du projet (ce fichier)
+├── requirements.txt                 # Dépendances de l'application, versions figées, ordre alphabétique
+├── requirements-dev.txt             # Outils de développement : pytest, ruff, pip-audit
+├── pyproject.toml                   # Configuration de ruff (lint, mise en forme) et de pytest
 ├── .env.example                     # Variables d'environnement attendues, sans aucune valeur secrète
 └── .gitignore                       # Exclut .env, la base, les fichiers envoyés et les caches Python
 ```
@@ -204,6 +223,7 @@ myplan/
 | [Conventions de nommage](docs/conventions_de_nommage.md) | Nommage du code, de la base, des routes, des tests et des branches ; format des erreurs de l'API |
 | [Modèle de données](docs/modele_donnees.md) | Dictionnaire, règles de gestion, MCD, MLD et choix physiques SQLite ; écarts avec les specs et questions ouvertes |
 | [Diagrammes de classes](docs/diagramme_classes.md) | SOLID appliqué aux classes prévues : où sont les interfaces, et où il n'y en a volontairement pas |
+| [Sécurité](docs/securite.md) | Protections en place (force brute, XSS, jetons, en-têtes…), limites connues, règles à suivre par chaque lot |
 | [Répartition des tâches](docs/repartition_taches.md) | Quatre lots verticaux, contrats à fixer ensemble, dépendances, relectures croisées, calendrier par phase |
 
 ## Équipe

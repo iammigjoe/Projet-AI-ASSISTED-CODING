@@ -18,6 +18,7 @@ Types SQLite : `INTEGER`, `REAL`, `TEXT`, `BLOB`. Un booléen est un `INTEGER` �
 | `email` | TEXT | NOT NULL, UNIQUE | Stocké en minuscules : `Alice@x.fr` et `alice@x.fr` sont le même compte |
 | `password_hash` | TEXT | NOT NULL | argon2, jamais le mot de passe |
 | `timezone` | TEXT | NOT NULL, défaut `Europe/Paris` | Nom IANA, pas un décalage (`+01:00`) : un décalage ne suit pas les changements d'heure |
+| `token_version` | INTEGER | NOT NULL, défaut `0`, ≥ 0 | Inscrite dans chaque jeton ; l'incrémenter révoque tous les jetons émis (déconnexion, mot de passe changé, [securite.md](securite.md)) |
 | `deleted_at` | TEXT | NULL | Suppression demandée : le compte est bloqué tout de suite, ses lignes sont supprimées une fois Google Agenda nettoyé (RG15) |
 
 ### PARAMÈTRES (`user_settings`)
@@ -269,7 +270,7 @@ Une seule association porteuse d'une cardinalité N-N : `CONCERNE`, qui devient 
 `#` = clé primaire, `→` = clé étrangère.
 
 ```text
-users (#id, email, password_hash, timezone, deleted_at, created_at, updated_at)
+users (#id, email, password_hash, timezone, token_version, deleted_at, created_at, updated_at)
 
 user_settings (#user_id→users, reading_speed_wpm, max_session_min, break_min,
                mastery_goal, retention_threshold, notif_prefs, created_at, updated_at)
@@ -455,6 +456,16 @@ RG4 impose au moins un chapitre par échéance. Mais un étudiant connaît souve
 
 Le planificateur (lot C de la [répartition](repartition_taches.md)) ne peut pas être écrit sans ces deux réponses.
 
-### 6.7 Un compte, ou plusieurs ?
+### 6.7 Un compte, ou plusieurs ? ✅ Tranché le 12/11/2026
 
-Le modèle est écrit pour plusieurs comptes (première question ouverte des specs). Pour un outil personnel, `users` et toutes les colonnes `user_id` resteraient utiles : elles ne coûtent presque rien et évitent une migration le jour où un deuxième compte arrive.
+**Un seul compte au départ.** Le modèle ne change pas :
+
+| Élément | Décision | Pourquoi |
+|---|---|---|
+| Table `users` et colonnes `user_id` | Conservées | Elles ne coûtent presque rien, et évitent une migration de toutes les tables le jour où un deuxième compte arrive |
+| Filtre par `user_id` dans les repositories | Conservé | Même raison ; c'est aussi ce qui rend les requêtes justes quand le deuxième compte arrivera |
+| Tests d'isolation entre utilisateurs | Conservés | Ils fabriquent deux utilisateurs en base de test, ce que l'inscription fermée n'empêche pas ; sans eux, l'ouverture à plusieurs comptes ne serait pas vérifiée |
+| Inscription | Ouverte tant que `users` est vide, fermée ensuite (`403`, code `REGISTRATION_CLOSED`) | Le premier lancement crée le compte ; personne d'autre ne peut en créer un |
+| Connexion | Obligatoire | L'API est joignable sur le réseau et garde le refresh token Google : sans connexion, n'importe qui sur le réseau lirait les cours et l'agenda |
+
+Ouvrir plusieurs comptes plus tard consistera à rouvrir l'inscription : aucune table ni requête ne change.

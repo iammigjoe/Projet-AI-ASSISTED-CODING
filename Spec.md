@@ -16,6 +16,7 @@ Ces specs disent **quoi** construire. Les documents de `docs/` disent **comment*
 | [docs/modele_donnees.md](docs/modele_donnees.md) | Tables, colonnes, contraintes, règles de gestion RG1 à RG15, questions ouvertes |
 | [docs/diagramme_classes.md](docs/diagramme_classes.md) | Classes, interfaces et leurs contrats |
 | [docs/repartition_taches.md](docs/repartition_taches.md) | Lots, responsables, contrats de la phase 0, relectures, calendrier |
+| [docs/securite.md](docs/securite.md) | Protections en place et règles de sécurité à suivre dans chaque route et chaque page |
 
 Quand ces specs et un document de `docs/` divergent, l'écart est corrigé des deux côtés dans la même pull request.
 
@@ -42,7 +43,7 @@ La colonne **Lot** indique le lot responsable (§10) : A socle et sécurité, B 
 
 | ID | Lot | Fonctionnalité | Détails / critères d'acceptation |
 |---|---|---|---|
-| P0-01 | A | **Comptes utilisateurs et authentification** (implicite) | Inscription, connexion, déconnexion. Chaque donnée appartient à un utilisateur. Sans cela, ni sécurité ni multi-étudiants. Email stocké en minuscules. |
+| P0-01 | A | **Compte utilisateur et authentification** (implicite) | **Un seul compte au départ** (§9) : l'inscription n'est possible que tant qu'aucun compte n'existe, puis elle est fermée. Connexion et déconnexion restent obligatoires : l'API est joignable sur le réseau et garde des jetons Google. Chaque donnée appartient quand même à un utilisateur (`user_id`), pour ouvrir plusieurs comptes plus tard sans migration. Email stocké en minuscules. |
 | P0-02 | A | **Gestion des matières / cours** (implicite) | Créer une matière (nom, couleur, niveau de difficulté perçu de 1 à 5). Nom unique par utilisateur. Les documents et chapitres sont rattachés à une matière. |
 | P0-03 | B | **Upload de documents PDF et Markdown** | Formats `.pdf` et `.md` uniquement, taille max définie (`MYPLAN_MAX_UPLOAD_BYTES`), validation du type réel par *magic bytes* (pas seulement l'extension), stockage sous un nom généré (UUID). |
 | P0-04 | B | **Extraction du texte** (implicite) | PDF → texte (PyMuPDF), Markdown → texte structuré, avec limite de temps. Erreur claire si le PDF est vide ou scanné (OCR en P3) : le document passe en `failed` avec un code (`EMPTY_TEXT`, `SCANNED_PDF`, `TIMEOUT`). |
@@ -148,7 +149,7 @@ Le détail (types, contraintes, règles de gestion, MCD, MLD) est dans [docs/mod
 
 | Table | Champs principaux |
 |---|---|
-| `users` | id, email, password_hash, timezone, deleted_at |
+| `users` | id, email, password_hash, timezone, token_version, deleted_at |
 | `user_settings` | user_id, reading_speed_wpm, max_session_min, break_min, mastery_goal, retention_threshold, notif_prefs |
 | `courses` | id, user_id, name, color, difficulty |
 | `documents` | id, course_id, filename_original, storage_key, type, size_bytes, sha256, status, error_code, uploaded_at |
@@ -175,7 +176,7 @@ Le détail (types, contraintes, règles de gestion, MCD, MLD) est dans [docs/mod
 | Front | Streamlit ≥ 1.36 (`st.navigation` pour des titres de pages en français) + `streamlit-calendar` pour la vue calendrier |
 | API | FastAPI, Pydantic v2, pydantic-settings, Uvicorn |
 | Base de données | SQLite via SQLAlchemy 2.x + Alembic (mode WAL, clés étrangères activées) |
-| Auth | `pyjwt`, `passlib[argon2]` |
+| Auth | `pyjwt`, `argon2-cffi` (passlib, proposé d'abord, n'est plus maintenu depuis 2020) |
 | PDF / Markdown | PyMuPDF, `markdown-it-py` |
 | Google | `google-auth-oauthlib`, `google-api-python-client` |
 | Planification en arrière-plan | APScheduler (MVP) |
@@ -232,7 +233,7 @@ L'ordre est découpé en phases, chacune terminée par une démonstration de bou
 
 | Question | Statut | Bloque |
 |---|---|---|
-| Un seul utilisateur (outil perso) ou multi-comptes dès le départ ? | Ouverte. Le modèle est écrit pour plusieurs comptes, ce qui ne coûte presque rien | Lot A, phase 0 |
+| Un seul utilisateur (outil perso) ou multi-comptes dès le départ ? | Tranché le 12/11/2026 : **un seul compte au départ**, `user_id` conservé partout ([modèle](docs/modele_donnees.md) §6.7) | — |
 | Les résumés passent-ils par un LLM externe ? Si oui, les cours quittent le serveur : à signaler à l'utilisateur | Ouverte. L'interface `LlmClient` permet un modèle local | Lot B, phase 3 |
 | Quel canal de notification en premier : email, Telegram, autre ? | Proposé : email | Lot A, phase 3 |
 | Les sessions replanifiées écrasent-elles les événements Google déjà créés, ou sont-elles proposées d'abord ? | Tranché par P2-01 : proposées d'abord, exportées après validation | — |

@@ -1,0 +1,73 @@
+# CI de MyPlan : chaque push et chaque pull request vers develop ou main.
+# Une pull request n'est fusionnée que si ce workflow est vert (repartition_taches.md §7).
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  qualite-et-tests:
+    name: Qualité et tests (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Version minimale déclarée dans pyproject.toml, et la plus récente.
+        python-version: ["3.12", "3.14"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: requirements*.txt
+
+      - name: Installer les dépendances
+        run: pip install -r requirements-dev.txt
+
+      - name: Lint (ruff check)
+        run: ruff check .
+
+      - name: Mise en forme (ruff format)
+        run: ruff format --check .
+
+      - name: Une seule tête Alembic
+        # Deux migrations créées en parallèle sur la même révision : la fusion est bloquée.
+        # Secrets jetables, générés à chaque exécution : la commande lit la
+        # configuration, qui refuse de démarrer sans eux.
+        run: |
+          export MYPLAN_JWT_SECRET_KEY=$(python -c "import secrets; print(secrets.token_hex(32))")
+          export MYPLAN_FERNET_KEY=$(python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
+          heads=$(alembic heads | wc -l)
+          echo "Têtes Alembic : $heads"
+          test "$heads" -le 1
+
+      - name: Tests (pytest)
+        run: pytest -q
+
+  audit-dependances:
+    name: Audit des dépendances
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Failles connues (pip-audit)
+        run: |
+          pip install pip-audit==2.10.1
+          pip-audit -r requirements.txt

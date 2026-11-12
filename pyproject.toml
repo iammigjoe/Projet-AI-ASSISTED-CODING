@@ -1,0 +1,39 @@
+# Configuration des outils. Les dépendances sont dans requirements.txt et requirements-dev.txt.
+
+[project]
+name = "myplan"
+version = "0.1.0"
+requires-python = ">=3.12"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["."]
+# Les exemples de code des documents sont alignés pour être lus, pas formatés.
+extend-exclude = ["backend/db/migrations/versions", "*.md"]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle : erreurs
+    "W",    # pycodestyle : avertissements
+    "F",    # pyflakes : imports et variables inutilisés
+    "I",    # isort : ordre des imports
+    "N",    # pep8-naming : conventions de nommage (§2)
+    "UP",   # pyupgrade : syntaxe Python 3.12
+    "B",    # bugbear : pièges fréquents
+    "S",    # bandit : failles de sécurité courantes
+    "DTZ",  # datetime sans fuseau interdites (conventions §2)
+    "SIM",  # simplifications
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Dans les tests, assert est l'outil normal et les mots de passe sont factices.
+"tests/**" = ["S101", "S105", "S106", "S107"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "--strict-markers --import-mode=importlib"

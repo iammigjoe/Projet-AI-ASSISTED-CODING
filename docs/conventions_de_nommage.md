@@ -365,7 +365,7 @@ Deux familles de routes échappent aussi au modèle « ressource au pluriel », 
 
 | Routes | Pourquoi |
 |---|---|
-| `POST /api/v1/auth/register`, `/login`, `/refresh` | Flux d'authentification, pas des ressources |
+| `POST /api/v1/auth/register`, `/login`, `/refresh`, `/logout` ; `GET /api/v1/auth/me` | Flux d'authentification, pas des ressources |
 | `GET /api/v1/google/authorize`, `GET /api/v1/google/callback`, `DELETE /api/v1/google/credentials` | Flux OAuth de Google ; l'URL de retour est enregistrée dans la console Google (`GOOGLE_REDIRECT_URI`) |
 | `GET /api/v1/progress` | Vue calculée pour le dashboard, au singulier : elle n'a pas d'identifiant et ne se crée pas |
 
@@ -386,14 +386,15 @@ Deux familles de routes échappent aussi au modèle « ressource au pluriel », 
 
 | Code | Quand |
 |---|---|
-| `400` | Requête mal formée |
-| `401` | Jeton absent, invalide ou expiré |
+| `400` | Requête mal formée, ou en-tête Host non autorisé |
+| `401` | Jeton absent, invalide, expiré ou révoqué ; identifiants de connexion incorrects |
+| `403` | Action fermée à tous, quel que soit l'utilisateur (inscription quand le compte existe déjà) |
 | `404` | Ressource inexistante **ou appartenant à un autre utilisateur** |
 | `409` | Conflit d'état (activer un planning déjà archivé) |
 | `413` | Fichier trop lourd |
 | `415` | Type de fichier refusé |
 | `422` | Entrée invalide (Pydantic) ou règle métier non respectée |
-| `429` | Trop de requêtes (rate limiting) |
+| `429` | Trop de requêtes (rate limiting), ou trop d'échecs de connexion ; en-tête `Retry-After` |
 
 Une ressource d'un autre utilisateur répond `404`, jamais `403` : `403` confirmerait que l'identifiant existe.
 
@@ -429,7 +430,7 @@ Erreur : toujours la même forme, avec un code stable que le frontend peut teste
 | `message` | Français, lisible tel quel par l'étudiant, sans détail technique |
 | `details` | Optionnel, données structurées propres au code |
 
-Codes connus : `VALIDATION_ERROR`, `NOT_FOUND`, `UNAUTHORIZED`, `FILE_TOO_LARGE`, `UNSUPPORTED_FILE_TYPE`, `EXTRACTION_FAILED`, `PLAN_NOT_FEASIBLE`, `GOOGLE_NOT_CONNECTED`, `RATE_LIMITED`. Un nouveau code s'ajoute dans `backend/api/errors.py`, à un seul endroit.
+Codes connus : `VALIDATION_ERROR`, `NOT_FOUND`, `UNAUTHORIZED`, `FILE_TOO_LARGE`, `UNSUPPORTED_FILE_TYPE`, `EXTRACTION_FAILED`, `PLAN_NOT_FEASIBLE`, `GOOGLE_NOT_CONNECTED`, `RATE_LIMITED`, `REGISTRATION_CLOSED`, `METHOD_NOT_ALLOWED`, `CONFLICT`, `INTERNAL_ERROR`, `TOO_MANY_LOGIN_ATTEMPTS`, `INVALID_CREDENTIALS`, `WEAK_PASSWORD`, `REQUEST_TOO_LARGE`, `INVALID_HOST`, et `DOMAIN_ERROR` pour une erreur métier sans code plus précis. Un nouveau code s'ajoute dans `ErrorCode` (`backend/api/errors.py`), à un seul endroit ; une erreur métier se déclare dans `backend/domain/errors.py` avec le même code.
 
 ---
 
