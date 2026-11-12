@@ -41,8 +41,8 @@ from backend.core.config import get_settings
 from backend.db.models.course import DEFAULT_COLOR, DEFAULT_DIFFICULTY
 from backend.domain.chapter_detection import detect_chapters
 from backend.domain.documents import DetectedChapter, ParsedDocument
-from backend.domain.enums import DocumentStatus, DocumentType
-from backend.domain.errors import ConflictError
+from backend.domain.enums import DocumentStatus, DocumentType, ExtractionErrorCode
+from backend.domain.errors import ConflictError, ExtractionError
 from backend.domain.estimation import (
     StudySettings,
     estimate_minutes,
@@ -52,7 +52,7 @@ from backend.integrations.parsers.base import ParserRegistry
 from backend.integrations.parsers.markdown_parser import MarkdownParser
 from backend.integrations.parsers.pdf_parser import PdfParser
 from backend.integrations.storage.local_file_storage import LocalFileStorage
-from backend.integrations.storage.upload_validator import UploadValidator
+from backend.integrations.storage.upload_validator import UploadValidator, check_extension
 from backend.repositories.course_repository import CourseRepository
 from backend.repositories.document_repository import DocumentRepository
 from backend.services.settings_service import SettingsService
@@ -145,6 +145,7 @@ class IngestionService:
     def accept_upload(self, data: bytes, filename_original: str) -> AcceptedUpload:
         """Valide et stocke le fichier sous un nom généré."""
         file_type = self._validator.validate(data[:4096], len(data))
+        check_extension(filename_original, file_type)
         storage_key = self._storage.save(data, file_type)
         return AcceptedUpload(
             filename_original=filename_original,
@@ -232,6 +233,14 @@ class IngestionService:
         except Exception:
             self._delete_stored(accepted.storage_key)
             raise
+
+        if not result.chapters:
+            # Une matière sans chapitre aurait 0 h : elle fausserait le planning.
+            self._delete_stored(accepted.storage_key)
+            raise ExtractionError(
+                ExtractionErrorCode.EMPTY_TEXT,
+                "Aucun chapitre trouvé : ajoutez des titres # ou ## au fichier.",
+            )
 
         name = _course_name(result.parsed, filename_original)
         if self._courses.name_taken(user_id, name):

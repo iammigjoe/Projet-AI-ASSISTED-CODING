@@ -68,11 +68,9 @@ def test_import_duplicate_name_returns_409(client, alice, auth_headers, storage_
     assert second.json()["error"]["code"] == "CONFLICT"
 
 
-def test_import_fake_pdf_as_markdown_text_is_accepted_or_parsed(
-    client, alice, auth_headers, storage_dir
-):
-    # fake.pdf est du texte sans %PDF : traité comme Markdown ; sans titres ##
-    # → matière créée avec 0 chapitre.
+def test_import_fake_pdf_is_rejected(client, alice, auth_headers, storage_dir):
+    # fake.pdf ne contient que du texte : un .pdf qui n'est pas un PDF est refusé,
+    # au lieu de devenir une matière vide (revue du lot A, 12/11/2026).
     data = (FIXTURES / "fake.pdf").read_bytes()
     response = client.post(
         COURSES,
@@ -80,11 +78,37 @@ def test_import_fake_pdf_as_markdown_text_is_accepted_or_parsed(
         files={"file": ("notes.pdf", data, "application/pdf")},
     )
 
-    assert response.status_code == 201, response.text
-    body = response.json()
-    assert body["name"] == "notes"
-    assert body["chapters"] == []
-    assert body["hours_total"] == 0.0
+    assert response.status_code == 422, response.text
+    assert response.json()["error"]["code"] == "UNSUPPORTED_FILE_TYPE"
+    assert client.get(COURSES, headers=auth_headers(alice.id)).json() == []
+
+
+def test_import_markdown_without_headings_is_rejected(client, alice, auth_headers, storage_dir):
+    response = client.post(
+        COURSES,
+        headers=auth_headers(alice.id),
+        files={"file": ("notes.md", b"Juste du texte, sans aucun titre.\n", "text/markdown")},
+    )
+
+    assert response.status_code == 422, response.text
+    assert response.json()["error"]["code"] == "EXTRACTION_FAILED"
+    assert "titres" in response.json()["error"]["message"]
+    assert client.get(COURSES, headers=auth_headers(alice.id)).json() == []
+    assert list(storage_dir.glob("*")) == []
+
+
+@pytest.mark.parametrize("filename", ["cours.txt", "cours", "cours.md.exe"])
+def test_import_with_extension_outside_whitelist_is_rejected(
+    client, alice, auth_headers, storage_dir, filename
+):
+    response = client.post(
+        COURSES,
+        headers=auth_headers(alice.id),
+        files={"file": (filename, b"# Cours\n## Chapitre\ntexte\n", "text/plain")},
+    )
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "UNSUPPORTED_FILE_TYPE"
 
 
 def test_import_binary_rejected(client, alice, auth_headers, storage_dir):
