@@ -384,6 +384,12 @@ Deux familles de routes échappent aussi au modèle « ressource au pluriel », 
 
 `PUT` n'est pas utilisé : aucune ressource n'est remplacée en entier.
 
+Pour le suivi MVP, `PATCH /api/v1/study-sessions/{session_id}` reçoit
+`{"status": "done"}` ou `{"status": "missed"}`. `GET /api/v1/progress` renvoie
+une liste de `{ "chapter_id", "completed_minutes" }` pour les chapitres de
+l'utilisateur ; les minutes sont cumulées sur les sessions `done` de toutes
+les versions du planning (RG12).
+
 | Code | Quand |
 |---|---|
 | `400` | Requête mal formée, ou en-tête Host non autorisé |
