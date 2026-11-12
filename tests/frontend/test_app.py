@@ -17,8 +17,12 @@ from pathlib import Path
 import httpx
 import pytest
 import streamlit as st
+from sqlalchemy import select
+from sqlalchemy.orm import sessionmaker
 from streamlit.testing.v1 import AppTest
 
+from backend.db.models import User
+from backend.services.course_service import CourseService
 from frontend.api.base import ApiClient
 from frontend.session import refresh_tokens
 from frontend.state import ACCESS_TOKEN, API_CLIENT
@@ -146,22 +150,28 @@ def test_expired_access_token_is_refreshed_transparently(app_test):
 # =============================================================================
 
 
-def test_create_course_appears_in_list(app_test):
-    at = _register(app_test)
+def _add_course(engine, name: str) -> None:
+    """Crée une matière pour le compte inscrit, comme le fera l'import (lot B)."""
+    session = sessionmaker(bind=engine)()
+    user = session.scalar(select(User))
+    CourseService(session).create(user.id, name)
+    session.close()
 
-    at.text_input[0].input("Analyse 2")
-    _button(at, "Ajouter").click()
+
+def test_courses_page_shows_progress(app_test, engine):
+    at = _register(app_test)
+    _add_course(engine, "Analyse 2")
+
     at.run()
 
-    assert "Analyse 2" in at.success[0].value
-    assert any("Analyse 2" in expander.label for expander in at.expander)
+    labels = [expander.label for expander in at.expander]
+    assert any("Analyse 2" in label and "0 %" in label for label in labels), labels
 
 
-def test_course_name_with_markup_is_displayed_inert(app_test):
+def test_course_name_with_markup_is_displayed_inert(app_test, engine):
     at = _register(app_test)
+    _add_course(engine, "[piège](javascript:alert(1))")
 
-    at.text_input[0].input("[piège](javascript:alert(1))")
-    _button(at, "Ajouter").click()
     at.run()
 
     labels = [expander.label for expander in at.expander]

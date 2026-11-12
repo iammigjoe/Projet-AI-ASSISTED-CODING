@@ -1,17 +1,17 @@
 """
 ===============================================================================
-Router : /api/v1/auth
+Router : /auth
 ===============================================================================
 Objectif :
     Exposer l'inscription, la connexion, le renouvellement des jetons et la
     déconnexion (P0-01).
 
 Endpoints :
-    POST  /api/v1/auth/register  Crée le compte unique (fermé ensuite : 403)
-    POST  /api/v1/auth/login     Échange email et mot de passe contre des jetons
-    POST  /api/v1/auth/refresh   Échange un jeton de rafraîchissement contre une nouvelle paire
-    POST  /api/v1/auth/logout    Révoque tous les jetons du compte
-    GET   /api/v1/auth/me        Renvoie le compte connecté
+    POST  /auth/register  Crée le compte unique (fermé ensuite : 403)
+    POST  /auth/login     Échange email et mot de passe contre des jetons
+    POST  /auth/refresh   Échange un jeton de rafraîchissement contre une nouvelle paire
+    POST  /auth/logout    Révoque tous les jetons du compte
+    GET   /auth/me        Renvoie le compte connecté
 
 Sécurité :
     register, login et refresh sont publics, et limités par IP (rate_limit.py) ;

@@ -61,7 +61,7 @@ with st.form("settings"):
         min_value=15,
         max_value=240,
         step=5,
-        value=settings["max_session_min"],
+        value=settings["session_minutes"],
     )
     break_minutes = st.number_input(
         "Pause entre deux sessions (minutes)",
@@ -92,7 +92,7 @@ with st.form("settings"):
             courses_api.update_settings(
                 client,
                 reading_speed_wpm=reading_speed,
-                max_session_min=max_session,
+                session_minutes=max_session,
                 break_min=break_minutes,
                 mastery_goal=goal,
                 retention_threshold=threshold / 100,

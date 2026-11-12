@@ -3,7 +3,7 @@
 Client HTTP : auth_api
 ===============================================================================
 Objectif :
-    Appels aux routes /api/v1/auth : inscription, connexion, renouvellement,
+    Appels aux routes /auth : inscription, connexion, renouvellement,
     déconnexion, compte connecté.
 
 Utilisé par :

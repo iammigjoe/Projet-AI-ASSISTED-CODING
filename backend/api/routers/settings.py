@@ -1,13 +1,13 @@
 """
 ===============================================================================
-Router : /api/v1/settings
+Router : /settings
 ===============================================================================
 Objectif :
     Exposer le profil d'étude de l'utilisateur connecté (P0-08).
 
 Endpoints :
-    GET    /api/v1/settings  Renvoie le profil d'étude
-    PATCH  /api/v1/settings  Modifie les champs envoyés
+    GET    /settings  Renvoie le profil d'étude
+    PATCH  /settings  Modifie les champs envoyés
 
 Sécurité :
     Utilisateur connecté uniquement ; le profil est toujours celui du jeton,

@@ -95,7 +95,7 @@ def test_streamed_oversized_request_without_length_returns_413(routes, client):
 
 def test_unknown_host_is_refused(app):
     with TestClient(app, base_url="http://evil.example") as other_client:
-        response = other_client.get("/api/v1/anything")
+        response = other_client.get("/anything")
 
     assert response.status_code == 400
     assert response.json()["error"]["code"] == "INVALID_HOST"
@@ -103,7 +103,7 @@ def test_unknown_host_is_refused(app):
 
 
 def test_api_responses_forbid_scripts(client):
-    response = client.get("/api/v1/anything")
+    response = client.get("/anything")
 
     assert (
         response.headers["Content-Security-Policy"] == "default-src 'none'; frame-ancestors 'none'"

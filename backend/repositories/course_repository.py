@@ -22,10 +22,27 @@ Lot :
 ===============================================================================
 """
 
+from dataclasses import dataclass
+
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
-from backend.db.models import Course
+from backend.db.models import Chapter, Course, Document, StudySession
+from backend.domain.enums import SessionStatus
+
+# =============================================================================
+# Types
+# =============================================================================
+
+
+@dataclass(frozen=True)
+class CourseProgress:
+    """Matière et son avancement, en minutes (GET /courses du contrat)."""
+
+    course: Course
+    minutes_total: int
+    minutes_done: int
+
 
 # =============================================================================
 # API publique
@@ -53,6 +70,59 @@ class CourseRepository:
             select(Course).where(Course.user_id == user_id).order_by(func.lower(Course.name))
         )
         return list(self._session.scalars(statement))
+
+    def list_with_progress(
+        self, user_id: int, course_id: int | None = None
+    ) -> list[CourseProgress]:
+        """Récupère les matières de l'utilisateur avec leur charge et le temps déjà étudié.
+
+        La charge est la somme des durées des chapitres (correction de
+        l'étudiant comprise, RG5) ; le temps étudié, la somme des sessions
+        faites, tous plannings confondus (RG12).
+
+        Args:
+            user_id: Utilisateur connecté.
+            course_id: Limite le résultat à cette matière, si fourni.
+
+        Returns:
+            Une entrée par matière, triées par nom sans tenir compte de la casse.
+        """
+        chapter_minutes = func.coalesce(Chapter.estimated_min_override, Chapter.estimated_min)
+        totals = (
+            select(Document.course_id, func.sum(chapter_minutes).label("minutes"))
+            .join(Chapter, Chapter.document_id == Document.id)
+            .group_by(Document.course_id)
+            .subquery()
+        )
+        # Durée d'une session en minutes ; julianday lit le texte ISO 8601 UTC stocké.
+        session_minutes = (
+            func.julianday(StudySession.ends_at) - func.julianday(StudySession.starts_at)
+        ) * 1440
+        done = (
+            select(Document.course_id, func.sum(session_minutes).label("minutes"))
+            .join(Chapter, Chapter.document_id == Document.id)
+            .join(StudySession, StudySession.chapter_id == Chapter.id)
+            .where(StudySession.status == SessionStatus.DONE)
+            .group_by(Document.course_id)
+            .subquery()
+        )
+        statement = (
+            select(
+                Course,
+                func.coalesce(totals.c.minutes, 0),
+                func.coalesce(done.c.minutes, 0),
+            )
+            .outerjoin(totals, totals.c.course_id == Course.id)
+            .outerjoin(done, done.c.course_id == Course.id)
+            .where(Course.user_id == user_id)
+            .order_by(func.lower(Course.name))
+        )
+        if course_id is not None:
+            statement = statement.where(Course.id == course_id)
+        return [
+            CourseProgress(course=course, minutes_total=int(total), minutes_done=round(minutes))
+            for course, total, minutes in self._session.execute(statement)
+        ]
 
     def get(self, user_id: int, course_id: int) -> Course | None:
         """Récupère une matière de l'utilisateur.

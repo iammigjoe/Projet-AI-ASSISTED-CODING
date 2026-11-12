@@ -47,7 +47,7 @@ def error_routes(app):
 
 
 def test_unknown_route_returns_not_found_format(client):
-    response = client.get("/api/v1/does-not-exist")
+    response = client.get("/does-not-exist")
 
     assert response.status_code == 404
     assert response.json() == {"error": {"code": "NOT_FOUND", "message": "Ressource introuvable."}}
@@ -97,7 +97,7 @@ def test_unexpected_error_returns_500_without_internal_details(error_routes, cli
 
 
 def test_responses_carry_security_headers(client):
-    response = client.get("/api/v1/does-not-exist")
+    response = client.get("/does-not-exist")
 
     assert response.headers["X-Content-Type-Options"] == "nosniff"
     assert response.headers["X-Frame-Options"] == "DENY"
