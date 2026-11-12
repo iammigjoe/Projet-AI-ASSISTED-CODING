@@ -132,7 +132,7 @@ Le détail et les critères d'acceptation de chaque fonctionnalité sont dans le
 | Interface | Streamlit, `streamlit-calendar` |
 | API | FastAPI, Pydantic v2, Uvicorn |
 | Base de données | SQLite, SQLAlchemy 2.x, Alembic |
-| Authentification | `pyjwt`, `passlib[argon2]` |
+| Authentification | `pyjwt`, `argon2-cffi` |
 | PDF et Markdown | PyMuPDF, `markdown-it-py` |
 | Google | `google-auth-oauthlib`, `google-api-python-client` |
 | Tâches en arrière-plan | APScheduler |
@@ -140,6 +140,22 @@ Le détail et les critères d'acceptation de chaque fonctionnalité sont dans le
 | Rate limiting | `slowapi` |
 | Résumés | API Anthropic ou autre, derrière une interface |
 | Tests | pytest, httpx |
+
+## Installation (développement)
+
+Python 3.12 ou plus récent. Les versions de toutes les dépendances sont figées dans `requirements.txt` (application) et `requirements-dev.txt` (tests et qualité).
+
+```bash
+python -m venv .venv
+.venv\Scripts\activate            # Windows ; sous macOS ou Linux : source .venv/bin/activate
+pip install -r requirements-dev.txt
+cp .env.example .env              # puis remplir les valeurs vides
+
+ruff check .                      # lint
+ruff format --check .             # mise en forme
+pytest                            # tests
+pip-audit -r requirements.txt     # failles connues dans les dépendances
+```
 
 ## Structure du dépôt
 
@@ -193,6 +209,9 @@ myplan/
 │
 ├── Spec.md                          # Spécifications fonctionnelles : quoi construire, par qui, dans quel ordre
 ├── README.md                        # Présentation du projet (ce fichier)
+├── requirements.txt                 # Dépendances de l'application, versions figées, ordre alphabétique
+├── requirements-dev.txt             # Outils de développement : pytest, ruff, pip-audit
+├── pyproject.toml                   # Configuration de ruff (lint, mise en forme) et de pytest
 ├── .env.example                     # Variables d'environnement attendues, sans aucune valeur secrète
 └── .gitignore                       # Exclut .env, la base, les fichiers envoyés et les caches Python
 ```

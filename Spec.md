@@ -175,7 +175,7 @@ Le détail (types, contraintes, règles de gestion, MCD, MLD) est dans [docs/mod
 | Front | Streamlit ≥ 1.36 (`st.navigation` pour des titres de pages en français) + `streamlit-calendar` pour la vue calendrier |
 | API | FastAPI, Pydantic v2, pydantic-settings, Uvicorn |
 | Base de données | SQLite via SQLAlchemy 2.x + Alembic (mode WAL, clés étrangères activées) |
-| Auth | `pyjwt`, `passlib[argon2]` |
+| Auth | `pyjwt`, `argon2-cffi` (passlib, proposé d'abord, n'est plus maintenu depuis 2020) |
 | PDF / Markdown | PyMuPDF, `markdown-it-py` |
 | Google | `google-auth-oauthlib`, `google-api-python-client` |
 | Planification en arrière-plan | APScheduler (MVP) |
