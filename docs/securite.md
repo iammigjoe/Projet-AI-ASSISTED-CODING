@@ -1,6 +1,6 @@
 # Sécurité
 
-Ce que le socle (lot A) met en place contre les attaques courantes, et ce que **chaque lot doit faire** pour en profiter. La section sécurité des [specs](../Spec.md) (§4) dit quoi protéger ; ce document dit où c'est fait dans le code, et comment s'en servir.
+Ce que le socle (lot A) met en place contre les attaques courantes, et ce que **chaque lot doit faire** pour en profiter. La section sécurité des [specs](../SPEC.md) (§4) dit quoi protéger ; ce document dit où c'est fait dans le code, et comment s'en servir.
 
 Une protection fournie par le socle ne protège rien si une route ou une page la contourne. Les règles de la §3 sont vérifiées en revue, et deux d'entre elles par des tests automatiques.
 
@@ -23,7 +23,7 @@ Une protection fournie par le socle ne protège rien si une route ou une page la
 | **Saturation du serveur** | Limite globale de 120 requêtes/min par IP ; corps de requête limité à la taille d'un upload (Content-Length **et** octets réellement reçus) | `backend/api/rate_limit.py`, `backend/api/middleware.py` | `test_protections.py` |
 | **Fuite d'informations par les erreurs** | Jamais de trace, de SQL ni de valeur saisie dans une réponse ; documentation `/docs` masquée en production | `backend/api/errors.py`, `backend/main.py` | `test_errors.py`, `test_protections.py` |
 | **Requête d'un autre site** (CSRF) | Jeton dans l'en-tête `Authorization`, jamais dans un cookie : un autre site ne peut pas l'envoyer à la place de l'étudiant ; CORS limité à `MYPLAN_CORS_ORIGINS` | `backend/main.py` | — |
-| **Secrets** | Refus de démarrer sans clé JWT de 32 caractères et clé Fernet valide ; secrets dans `.env`, jamais commité ; refresh token Google chiffré | `backend/core/config.py` | `test_config.py` |
+| **Secrets** | Refus de démarrer sans clé JWT de 32 caractères et clé Fernet valide ; secrets dans `.env`, jamais commité ; aucun service externe, donc aucune clé tierce à protéger | `backend/core/config.py` | `test_config.py` |
 
 ---
 
@@ -84,6 +84,8 @@ Les pages se créent dans `frontend/views/`. Un dossier `frontend/pages/` serait
 
 Le texte d'un PDF vient d'un inconnu : un titre de chapitre peut contenir `[cliquez ici](javascript:...)` ou une image qui signale à un tiers que le cours a été ouvert.
 
-### Contenu envoyé au LLM (lot B, phase 3)
+### Fichiers importés (lot B)
 
-Le texte des cours est une **donnée**, jamais une instruction : il est placé dans le message comme contenu à résumer, et la sortie du LLM est validée (longueur, absence de HTML) avant d'être stockée, puis échappée à l'affichage comme tout autre texte.
+Le texte d'un PDF ou d'un Markdown vient d'un inconnu. Il n'est jamais exécuté ni interprété : il sert à compter des mots et à repérer des titres. Les titres de chapitres sont stockés tels quels, nettoyés par les types de `schemas/common.py`, et échappés à l'affichage.
+
+Le produit n'appelle **aucune IA** (sujet StudyPlan) : il n'y a donc pas d'injection de prompt possible côté produit.
