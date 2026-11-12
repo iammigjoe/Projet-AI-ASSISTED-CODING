@@ -32,7 +32,7 @@ def test_request_sends_bearer_token_and_prefix():
         return httpx.Response(200, json=[{"id": 1}])
 
     assert _client(handler).get("/courses") == [{"id": 1}]
-    assert seen == {"url": "http://api.test/api/v1/courses", "auth": "Bearer access-123"}
+    assert seen == {"url": "http://api.test/courses", "auth": "Bearer access-123"}
 
 
 def test_request_without_token_sends_no_authorization():

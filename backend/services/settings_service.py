@@ -36,7 +36,7 @@ from backend.db.models import UserSettings
 # =============================================================================
 
 _EDITABLE_FIELDS = frozenset(
-    {"reading_speed_wpm", "max_session_min", "break_min", "mastery_goal", "retention_threshold"}
+    {"reading_speed_wpm", "session_minutes", "break_min", "mastery_goal", "retention_threshold"}
 )
 
 # =============================================================================

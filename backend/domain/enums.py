@@ -62,23 +62,27 @@ class DocumentStatus(StrEnum):
     FAILED = "failed"
 
 
+class ExtractionErrorCode(StrEnum):
+    """Code stocké dans documents.error_code quand status = failed (P0-04)."""
+
+    EMPTY_TEXT = "EMPTY_TEXT"
+    SCANNED_PDF = "SCANNED_PDF"
+    TIMEOUT = "TIMEOUT"
+    INVALID_BYTES = "INVALID_BYTES"
+    TOO_LARGE = "TOO_LARGE"
+    UNSUPPORTED_TYPE = "UNSUPPORTED_TYPE"
+
+
 # =============================================================================
 # Lot C : planification
 # =============================================================================
 
 
-class ExceptionKind(StrEnum):
-    """Nature d'une exception aux disponibilités (P0-09)."""
-
-    BLOCKED = "blocked"
-    ADDED = "added"
-
-
 class DeadlineType(StrEnum):
-    """Nature d'une échéance (P0-10)."""
+    """Nature d'une échéance, valeurs du contrat d'API (STUDYPLAN_SPEC §2, bloc 2)."""
 
     EXAM = "exam"
-    PROJECT = "project"
+    ASSIGNMENT = "assignment"
 
 
 class PlanStatus(StrEnum):

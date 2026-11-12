@@ -3,7 +3,7 @@
 Service : CourseService
 ===============================================================================
 Objectif :
-    Gérer les matières d'un utilisateur (P0-02).
+    Gérer les matières d'un utilisateur et calculer leur avancement (bloc 1, P0-02).
 
 Responsabilités :
     - Refuser deux matières du même nom chez un même utilisateur, casse
@@ -28,7 +28,7 @@ Notes :
     (lot B) et CalendarSyncService (lot D), modele_donnees.md §5.
 
 Exemple d'utilisation :
-    course = CourseService(session).create(user.id, "Analyse 2", "#3366FF", difficulty=4)
+    progress = CourseService(session).list(user.id)
 
 Lot :
     A (socle et sécurité)
@@ -38,8 +38,9 @@ Lot :
 from sqlalchemy.orm import Session
 
 from backend.db.models import Course
+from backend.db.models.course import DEFAULT_COLOR, DEFAULT_DIFFICULTY
 from backend.domain.errors import ConflictError, NotFoundError
-from backend.repositories.course_repository import CourseRepository
+from backend.repositories.course_repository import CourseProgress, CourseRepository
 
 # =============================================================================
 # Constantes
@@ -59,9 +60,20 @@ class CourseService:
         self._session = session
         self._courses = CourseRepository(session)
 
-    def list(self, user_id: int) -> list[Course]:
-        """Liste les matières de l'utilisateur, triées par nom."""
-        return self._courses.list_sorted_by_name(user_id)
+    def list(self, user_id: int) -> list[CourseProgress]:
+        """Liste les matières de l'utilisateur avec leur avancement, triées par nom."""
+        return self._courses.list_with_progress(user_id)
+
+    def get_progress(self, user_id: int, course_id: int) -> CourseProgress:
+        """Renvoie une matière de l'utilisateur avec son avancement.
+
+        Raises:
+            NotFoundError: Si elle n'existe pas ou appartient à un autre utilisateur.
+        """
+        found = self._courses.list_with_progress(user_id, course_id=course_id)
+        if not found:
+            raise NotFoundError(NOT_FOUND_MESSAGE)
+        return found[0]
 
     def get(self, user_id: int, course_id: int) -> Course:
         """Renvoie une matière de l'utilisateur.
@@ -74,8 +86,14 @@ class CourseService:
             raise NotFoundError(NOT_FOUND_MESSAGE)
         return course
 
-    def create(self, user_id: int, name: str, color: str, difficulty: int) -> Course:
-        """Crée une matière.
+    def create(
+        self,
+        user_id: int,
+        name: str,
+        color: str = DEFAULT_COLOR,
+        difficulty: int = DEFAULT_DIFFICULTY,
+    ) -> Course:
+        """Crée une matière ; utilisé par l'import d'un cours (POST /courses, lot B).
 
         Raises:
             ConflictError: Si l'utilisateur a déjà une matière de ce nom.
