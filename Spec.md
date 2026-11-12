@@ -196,7 +196,7 @@ Le détail (types, contraintes, règles de gestion, MCD, MLD) est dans [docs/mod
 myplan/
 ├── frontend/              # Couche 1 : Streamlit
 │   ├── app.py             # Point d'entrée et menu (st.navigation)
-│   ├── pages/             # Une page par écran, noms en anglais
+│   ├── views/             # Une page par écran, noms en anglais (jamais « pages/ »)
 │   ├── components/        # Morceaux d'interface réutilisés
 │   └── api/               # Un client HTTP par domaine, seul contact avec FastAPI
 ├── backend/

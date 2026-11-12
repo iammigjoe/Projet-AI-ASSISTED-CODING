@@ -1,0 +1,18 @@
+# Configuration Streamlit de MyPlan (lue au lancement depuis la racine du projet).
+
+[client]
+# Jamais de trace Python dans le navigateur : elle peut révéler du code ou des données.
+showErrorDetails = "none"
+# Le menu est déclaré par st.navigation dans frontend/app.py.
+showSidebarNavigation = true
+toolbarMode = "minimal"
+
+[server]
+# Protections par défaut de Streamlit, rappelées pour qu'on ne les retire pas par erreur.
+enableXsrfProtection = true
+enableCORS = true
+# Taille maximale d'un fichier envoyé, en Mo : alignée sur MYPLAN_MAX_UPLOAD_BYTES (20 Mo).
+maxUploadSize = 20
+
+[browser]
+gatherUsageStats = false
