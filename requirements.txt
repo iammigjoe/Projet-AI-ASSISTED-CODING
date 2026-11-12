@@ -19,4 +19,6 @@ slowapi==0.1.10
 sqlalchemy==2.1.8
 streamlit==1.67.0
 streamlit-calendar==1.4.0
+# Base des fuseaux IANA (Europe/Paris…) : absente de Windows, indispensable à zoneinfo.
+tzdata==2026.6
 uvicorn==0.54.0

@@ -1,0 +1,9 @@
+Migrations Alembic de MyPlan (SQLite, mode batch).
+
+Créer :     alembic revision --autogenerate -m "create courses table"
+Appliquer : alembic upgrade head
+Vérifier :  alembic heads   (une seule tête attendue avant toute fusion)
+
+Règles : docs/conventions_de_nommage.md §8. Une migration fusionnée dans develop
+ne se modifie jamais ; une erreur se corrige par une nouvelle migration.
+Toujours relire le fichier généré par --autogenerate avant de le commiter.
