@@ -22,3 +22,6 @@ Lot :
 ACCESS_TOKEN = "access_token"  # noqa: S105
 REFRESH_TOKEN = "refresh_token"  # noqa: S105
 CURRENT_USER = "current_user"
+API_CLIENT = "api_client"
+# Message à afficher sur la page suivante (après une redirection ou un rerun).
+FLASH_MESSAGE = "flash_message"
