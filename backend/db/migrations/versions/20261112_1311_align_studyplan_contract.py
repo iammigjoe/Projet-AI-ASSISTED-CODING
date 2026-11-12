@@ -5,7 +5,8 @@ Aligne le schéma sur le contrat d'API officiel (STUDYPLAN_SPEC.md) :
   échéance porte sur toute sa matière (deadline_chapters supprimée) ;
 - disponibilités : créneaux hebdomadaires seuls (exceptions supprimées) ;
 - profil : session_minutes, durée de chaque session du planning ;
-- plannings : une semaine ISO par planning, un planning actif par semaine.
+- plannings : une semaine ISO par planning, un planning actif par semaine ;
+- sessions : google_event_id supprimé (export .ics au lieu de Google Agenda).
 
 Écrite à la main à partir de --autogenerate, qui produisait une migration
 fausse : colonnes NOT NULL ajoutées sans reprise des lignes existantes (échec
@@ -122,9 +123,17 @@ def upgrade() -> None:
             batch_op.f("ck_plans_week_format"), "week GLOB '[0-9][0-9][0-9][0-9]-W[0-9][0-9]'"
         )
 
+    # --- Sessions : plus de synchronisation Google ---------------------------
+    with op.batch_alter_table("study_sessions", schema=None) as batch_op:
+        batch_op.drop_column("google_event_id")
+
 
 def downgrade() -> None:
     """Annule la migration (les exceptions et liens échéance-chapitre sont perdus)."""
+    # --- Sessions ------------------------------------------------------------
+    with op.batch_alter_table("study_sessions", schema=None) as batch_op:
+        batch_op.add_column(sa.Column("google_event_id", sa.String(length=1024), nullable=True))
+
     # --- Plannings -----------------------------------------------------------
     with op.batch_alter_table("plans", schema=None) as batch_op:
         batch_op.drop_constraint(batch_op.f("ck_plans_week_format"), type_="check")
