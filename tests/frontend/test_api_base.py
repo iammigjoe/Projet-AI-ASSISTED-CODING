@@ -84,3 +84,68 @@ def test_no_content_returns_none():
         return httpx.Response(204)
 
     assert _client(handler).delete("/courses/1") is None
+
+
+def test_unauthorized_response_is_refreshed_then_replayed_once():
+    tokens = iter(["expired", "fresh"])
+    current = {"token": next(tokens)}
+    calls = []
+
+    def handler(request):
+        calls.append(request.headers.get("Authorization"))
+        if request.headers.get("Authorization") == "Bearer fresh":
+            return httpx.Response(200, json={"ok": True})
+        return httpx.Response(401, json={"error": {"code": "UNAUTHORIZED", "message": "x"}})
+
+    def refresher():
+        current["token"] = next(tokens)
+        return True
+
+    client = ApiClient(
+        "http://api.test",
+        token_getter=lambda: current["token"],
+        refresher=refresher,
+        transport=httpx.MockTransport(handler),
+    )
+
+    assert client.get("/courses") == {"ok": True}
+    assert calls == ["Bearer expired", "Bearer fresh"]
+
+
+def test_failed_refresh_raises_unauthorized():
+    def handler(request):
+        return httpx.Response(401, json={"error": {"code": "UNAUTHORIZED", "message": "x"}})
+
+    client = ApiClient(
+        "http://api.test",
+        token_getter=lambda: "expired",
+        refresher=lambda: False,
+        transport=httpx.MockTransport(handler),
+    )
+
+    with pytest.raises(ApiError) as caught:
+        client.get("/courses")
+
+    assert caught.value.code == "UNAUTHORIZED"
+
+
+def test_public_route_sends_no_token_and_never_refreshes():
+    seen = {}
+
+    def handler(request):
+        seen["auth"] = request.headers.get("Authorization")
+        return httpx.Response(401, json={"error": {"code": "INVALID_CREDENTIALS", "message": "x"}})
+
+    def refresher():
+        raise AssertionError("une route publique ne doit pas renouveler les jetons")
+
+    client = ApiClient(
+        "http://api.test",
+        token_getter=lambda: "token",
+        refresher=refresher,
+        transport=httpx.MockTransport(handler),
+    )
+
+    with pytest.raises(ApiError):
+        client.post("/auth/login", json={}, authenticated=False)
+    assert seen["auth"] is None
