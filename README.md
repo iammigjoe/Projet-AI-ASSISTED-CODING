@@ -175,8 +175,9 @@ Les dossiers existent, vides : le code n'a pas commencé. Chaque lot y crée ses
 myplan/
 │
 ├── frontend/                        # Couche 1 : interface Streamlit, sans règle métier ni accès à la base
-│   ├── views/                       # Un fichier par écran (matières, documents, planning, tableau de bord…) ;
-│   │                                #   titres français déclarés dans app.py avec st.navigation
+│   ├── app.py                       # Point d'entrée : connexion obligatoire, menu (titres français, st.navigation)
+│   ├── views/                       # Pages : un fichier par écran (matières, documents, planning…) ;
+│   │                                #   jamais de dossier « pages/ », exécuté par Streamlit sans connexion
 │   ├── components/                  # Morceaux d'interface réutilisés par plusieurs pages (éditeur de chapitres,
 │   │                                #   carte de session)
 │   └── api/                         # Clients HTTP, un fichier par domaine : seul point de contact avec FastAPI

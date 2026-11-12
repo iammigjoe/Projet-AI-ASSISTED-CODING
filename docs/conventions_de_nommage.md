@@ -60,7 +60,7 @@ Règles de nommage de MyPlan, de la base de données jusqu'aux branches Git. Ell
 | Tables | `snake_case` **pluriel** | `courses`, `study_sessions` |
 | Colonnes | `snake_case` | `due_at`, `estimated_min` |
 | Routes | `kebab-case` pluriel, préfixe `/api/v1/` | `/api/v1/study-sessions` |
-| Pages Streamlit | `snake_case`, anglais ; titre affiché en français | `plan.py`, titre « Planning » |
+| Pages Streamlit | `frontend/views/`, `snake_case`, anglais ; titre affiché en français | `frontend/views/plan.py`, titre « Planning » |
 | Branches Git | préfixe + `kebab-case` | `feature/chapter-detection` |
 
 ---
