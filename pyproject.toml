@@ -28,7 +28,7 @@ select = [
 
 [tool.ruff.lint.per-file-ignores]
 # Dans les tests, assert est l'outil normal et les mots de passe sont factices.
-"tests/**" = ["S101", "S105", "S106"]
+"tests/**" = ["S101", "S105", "S106", "S107"]
 
 [tool.ruff.format]
 quote-style = "double"
