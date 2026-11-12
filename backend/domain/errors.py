@@ -90,3 +90,9 @@ class WeakPasswordError(DomainError):
     """Mot de passe refusé par la politique (backend/domain/password_policy.py)."""
 
     code: ClassVar[str] = "WEAK_PASSWORD"  # noqa: S105  # code d'erreur, pas un secret
+
+
+class ConflictError(DomainError):
+    """L'opération contredit l'état existant (nom déjà pris, état incompatible) : 409."""
+
+    code: ClassVar[str] = "CONFLICT"

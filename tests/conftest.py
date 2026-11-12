@@ -125,3 +125,24 @@ def auth_headers() -> Callable[..., dict[str, str]]:
         return {"Authorization": f"Bearer {token}"}
 
     return _headers
+
+
+@pytest.fixture
+def make_user(engine: Engine) -> Callable[..., object]:
+    """Crée un compte et ses paramètres, validés en base : make_user("b@exemple.fr").
+
+    Sert aux tests d'isolation de tous les lots : un utilisateur A, un
+    utilisateur B, et B ne doit jamais voir les données de A.
+    """
+    from backend.repositories.user_repository import UserRepository
+
+    factory = sessionmaker(bind=engine, expire_on_commit=False)
+
+    def _make_user(email: str = "etudiant@exemple.fr", timezone: str = "Europe/Paris"):
+        session = factory()
+        user = UserRepository(session).create(email, "argon2-hash-factice", timezone)
+        session.commit()
+        session.close()
+        return user
+
+    return _make_user

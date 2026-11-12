@@ -112,6 +112,11 @@ class MultilineText:
 
 EmailAddress = Annotated[str, AfterValidator(_clean_email)]
 
+# Couleur d'affichage « #RRGGBB », stockée en majuscules.
+HexColor = Annotated[
+    str, Field(pattern=r"^#[0-9A-Fa-f]{6}$"), AfterValidator(lambda value: value.upper())
+]
+
 # Nom IANA (« Europe/Paris »), pas un décalage : un décalage ne suit pas les changements d'heure.
 TimezoneName = Annotated[str, Field(max_length=64), AfterValidator(_check_timezone)]
 

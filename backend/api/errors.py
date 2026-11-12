@@ -33,6 +33,7 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from backend.domain.errors import (
+    ConflictError,
     DomainError,
     InvalidCredentialsError,
     NotFoundError,
@@ -80,6 +81,7 @@ class ErrorCode(StrEnum):
 # Codes HTTP des erreurs métier qui ne répondent pas 422.
 _DOMAIN_STATUS: dict[type[DomainError], int] = {
     NotFoundError: status.HTTP_404_NOT_FOUND,
+    ConflictError: status.HTTP_409_CONFLICT,
     RegistrationClosedError: status.HTTP_403_FORBIDDEN,
     InvalidCredentialsError: status.HTTP_401_UNAUTHORIZED,
     TooManyLoginAttemptsError: status.HTTP_429_TOO_MANY_REQUESTS,
