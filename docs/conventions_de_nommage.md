@@ -26,7 +26,7 @@ Règles de nommage de MyPlan, de la base de données jusqu'aux branches Git. Ell
 | **Langue du code** | Anglais : modules, classes, fonctions, variables, routes, tables, colonnes |
 | **Langue des contenus** | Français : textes de l'interface, messages d'erreur affichés à l'étudiant, documentation, en-têtes, docstrings et commentaires (§12) |
 | **Abréviations** | Interdites, sauf acronymes établis (`id`, `url`, `pdf`, `jwt`, `llm`, `utc`) et unités (`min`) |
-| **Un concept, un nom** | Le même mot dans toutes les couches : `Chapter` (modèle), `chapters` (table), `ChapterRead` (schéma), `/api/v1/chapters` (route), `ChapterRepository` (accès aux données) |
+| **Un concept, un nom** | Le même mot dans toutes les couches : `Chapter` (modèle), `chapters` (table), `ChapterRead` (schéma), `/chapters` (route), `ChapterRepository` (accès aux données) |
 | **Vocabulaire fixé** | Voir le glossaire ci-dessous : on n'écrit jamais `lesson` pour un chapitre ni `slot` pour une session |
 
 ### Glossaire
@@ -59,7 +59,7 @@ Règles de nommage de MyPlan, de la base de données jusqu'aux branches Git. Ell
 | Membres d'énumération | `UPPER_SNAKE_CASE`, valeur en `snake_case` | `SessionStatus.PLANNED = "planned"` |
 | Tables | `snake_case` **pluriel** | `courses`, `study_sessions` |
 | Colonnes | `snake_case` | `due_at`, `estimated_min` |
-| Routes | `kebab-case` pluriel, préfixe `/api/v1/` | `/api/v1/study-sessions` |
+| Routes | Celles du contrat à l'identique ; les autres en `kebab-case` pluriel, sans préfixe | `/plan/generate`, `/courses/{course_id}` |
 | Pages Streamlit | `frontend/views/`, `snake_case`, anglais ; titre affiché en français | `frontend/views/plan.py`, titre « Planning » |
 | Branches Git | préfixe + `kebab-case` | `feature/chapter-detection` |
 
@@ -133,7 +133,7 @@ Le nom décrit ce que le domaine manipule, pas la table d'où ça vient : `Chapt
 | Services (couche 3) | `PascalCase + Service` | `IngestionService`, `PlanningService`, `CalendarSyncService` |
 | Repositories (couche 5) | `PascalCase + Repository` | `CourseRepository`, `StudySessionRepository` |
 | Interfaces (`typing.Protocol`) | nom du rôle, sans `I` ni `Interface` | `DocumentParser`, `CalendarWriter`, `LlmClient` |
-| Implémentations | technologie + rôle | `PdfParser`, `GoogleCalendarClient`, `AnthropicLlmClient` |
+| Implémentations | technologie + rôle | `PdfParser`, `MarkdownParser`, `IcsExporter` |
 | Exceptions | `PascalCase + Error` | `PlanNotFeasibleError`, `ExtractionError` |
 
 Les specs écrivent `UserRepo`, `CourseRepo` : ce document fixe `UserRepository`, sans abréviation.
@@ -165,7 +165,7 @@ build_free_slots()
 
 # Booléens : is_, has_, can_
 is_overridden
-has_google_credentials
+has_chapters
 
 # Unités dans le nom quand ce n'est pas une datetime
 duration_min        # minutes
@@ -335,58 +335,48 @@ Fixés une fois pour toutes par la `naming_convention` du `MetaData` SQLAlchemy,
 
 ### Routes
 
-`kebab-case`, **pluriel**, préfixe `/api/v1/`. L'action est portée par la méthode HTTP.
+**Les routes du contrat du sujet ([SPEC.md](../SPEC.md) §3) s'écrivent à l'identique, sans préfixe**, et ne se renomment jamais. Les routes ajoutées par MyPlan suivent les mêmes règles : `kebab-case`, **pluriel**, l'action portée par la méthode HTTP.
 
 ```text
-POST   /api/v1/auth/register
-POST   /api/v1/auth/login
-POST   /api/v1/auth/refresh
+# Contrat du sujet (imposé)
+POST   /courses                     # import d'un fichier (multipart)
+GET    /courses
+POST   /deadlines
+GET    /deadlines
+DELETE /deadlines/{deadline_id}
+PUT    /availability
+POST   /plan/generate
+GET    /plan?week=2026-W47
+PATCH  /sessions/{session_id}
+GET    /plan.ics
 
-GET    /api/v1/courses
-POST   /api/v1/courses
-GET    /api/v1/courses/{course_id}
-PATCH  /api/v1/courses/{course_id}
-DELETE /api/v1/courses/{course_id}
-
-POST   /api/v1/courses/{course_id}/documents      # upload
-GET    /api/v1/documents/{document_id}            # statut d'extraction
-GET    /api/v1/documents/{document_id}/chapters
-PATCH  /api/v1/chapters/{chapter_id}
-
-GET    /api/v1/availabilities
-GET    /api/v1/availability-exceptions
-GET    /api/v1/deadlines
-
-POST   /api/v1/plans                              # génère une nouvelle version
-GET    /api/v1/plans/{plan_id}/study-sessions
-PATCH  /api/v1/study-sessions/{session_id}        # faite, non faite, auto-évaluation
-
-GET    /api/v1/progress                           # données du dashboard
+# Extensions de MyPlan
+POST   /auth/register | /auth/login | /auth/refresh | /auth/logout
+GET    /auth/me
+GET    /courses/{course_id}
+PATCH  /courses/{course_id}
+DELETE /courses/{course_id}
+GET    /courses/{course_id}/chapters
+PATCH  /chapters/{chapter_id}
+GET    /settings
+PATCH  /settings
 ```
 
-Les ressources imbriquées ne descendent que d'un niveau, et seulement pour **créer** ou **lister** dans un parent. Une ressource qui a un identifiant se lit à la racine : `/api/v1/chapters/{chapter_id}`, pas `/api/v1/courses/1/documents/2/chapters/3`.
+Les ressources imbriquées ne descendent que d'un niveau, et seulement pour **lister** dans un parent. Une ressource qui a un identifiant se lit à la racine : `/chapters/{chapter_id}`, pas `/courses/1/chapters/3`.
+
+Le contrat utilise des noms qui ne suivent pas ces règles (`/availability` au singulier, `/plan/generate`, `/plan.ics`, `/sessions` pour les sessions d'étude). Ils sont **imposés** : on les garde tels quels, et le code les relie au vocabulaire du projet (`study_sessions` en base, `StudySession` en Python).
 
 ### Opérations qui ne sont pas du CRUD
 
-Quelques opérations ne se réduisent pas à créer, lire, modifier ou supprimer une ressource. Elles prennent la forme `POST /ressource/{id}/<action>`, et **seules celles listées ici** sont autorisées :
+Seules celles listées ici sont autorisées ; en ajouter une se décide en revue :
 
 | Route | Ce qu'elle fait |
 |---|---|
-| `POST /api/v1/chapters/{chapter_id}/split` | Scinde un chapitre en deux à une position donnée |
-| `POST /api/v1/chapters/merge` | Fusionne des chapitres consécutifs d'un même document |
-| `POST /api/v1/plans/{plan_id}/activate` | Fait d'un brouillon le planning actif |
-| `POST /api/v1/plans/{plan_id}/google-sync` | Exporte le planning vers Google Agenda |
-| `POST /api/v1/plans/{plan_id}/replan` | Propose une nouvelle version à partir de l'avancement réel |
-
-Ajouter une route à ce tableau se décide en revue, pas au fil du code.
-
-Deux familles de routes échappent aussi au modèle « ressource au pluriel », parce qu'elles suivent un protocole fixé ailleurs :
-
-| Routes | Pourquoi |
-|---|---|
-| `POST /api/v1/auth/register`, `/login`, `/refresh`, `/logout` ; `GET /api/v1/auth/me` | Flux d'authentification, pas des ressources |
-| `GET /api/v1/google/authorize`, `GET /api/v1/google/callback`, `DELETE /api/v1/google/credentials` | Flux OAuth de Google ; l'URL de retour est enregistrée dans la console Google (`GOOGLE_REDIRECT_URI`) |
-| `GET /api/v1/progress` | Vue calculée pour le dashboard, au singulier : elle n'a pas d'identifiant et ne se crée pas |
+| `POST /plan/generate` | Génère le planning d'une semaine (contrat) |
+| `GET /plan.ics` | Exporte les sessions en calendrier (contrat) |
+| `POST /chapters/{chapter_id}/split` | Scinde un chapitre en deux à une position donnée |
+| `POST /chapters/merge` | Fusionne des chapitres consécutifs d'une même matière |
+| `POST /auth/register`, `/login`, `/refresh`, `/logout` ; `GET /auth/me` | Flux d'authentification, pas des ressources |
 
 ### Paramètres
 
@@ -401,7 +391,7 @@ Deux familles de routes échappent aussi au modèle « ressource au pluriel », 
 | `PATCH` | Modification partielle | `200` |
 | `DELETE` | Suppression | `204` |
 
-`PUT` n'est pas utilisé : aucune ressource n'est remplacée en entier.
+`PUT` ne sert qu'à `PUT /availability` (contrat) : les créneaux sont remplacés en entier.
 
 | Code | Quand |
 |---|---|
@@ -409,10 +399,10 @@ Deux familles de routes échappent aussi au modèle « ressource au pluriel », 
 | `401` | Jeton absent, invalide, expiré ou révoqué ; identifiants de connexion incorrects |
 | `403` | Action fermée à tous, quel que soit l'utilisateur (inscription quand le compte existe déjà) |
 | `404` | Ressource inexistante **ou appartenant à un autre utilisateur** |
-| `409` | Conflit d'état (activer un planning déjà archivé) |
+| `409` | Conflit d'état (nom de matière déjà pris) |
 | `413` | Fichier trop lourd |
 | `415` | Type de fichier refusé |
-| `422` | Entrée invalide (Pydantic) ou règle métier non respectée |
+| `422` | Entrée invalide (Pydantic) ou règle métier non respectée (échéance dans le passé, temps insuffisant) |
 | `429` | Trop de requêtes (rate limiting), ou trop d'échecs de connexion ; en-tête `Retry-After` |
 
 Une ressource d'un autre utilisateur répond `404`, jamais `403` : `403` confirmerait que l'identifiant existe.
@@ -449,7 +439,7 @@ Erreur : toujours la même forme, avec un code stable que le frontend peut teste
 | `message` | Français, lisible tel quel par l'étudiant, sans détail technique |
 | `details` | Optionnel, données structurées propres au code |
 
-Codes connus : `VALIDATION_ERROR`, `NOT_FOUND`, `UNAUTHORIZED`, `FILE_TOO_LARGE`, `UNSUPPORTED_FILE_TYPE`, `EXTRACTION_FAILED`, `PLAN_NOT_FEASIBLE`, `GOOGLE_NOT_CONNECTED`, `RATE_LIMITED`, `REGISTRATION_CLOSED`, `METHOD_NOT_ALLOWED`, `CONFLICT`, `INTERNAL_ERROR`, `TOO_MANY_LOGIN_ATTEMPTS`, `INVALID_CREDENTIALS`, `WEAK_PASSWORD`, `REQUEST_TOO_LARGE`, `INVALID_HOST`, et `DOMAIN_ERROR` pour une erreur métier sans code plus précis. Un nouveau code s'ajoute dans `ErrorCode` (`backend/api/errors.py`), à un seul endroit ; une erreur métier se déclare dans `backend/domain/errors.py` avec le même code.
+Codes connus : `VALIDATION_ERROR`, `NOT_FOUND`, `UNAUTHORIZED`, `FILE_TOO_LARGE`, `UNSUPPORTED_FILE_TYPE`, `EXTRACTION_FAILED`, `PLAN_NOT_FEASIBLE`, `RATE_LIMITED`, `REGISTRATION_CLOSED`, `METHOD_NOT_ALLOWED`, `CONFLICT`, `INTERNAL_ERROR`, `TOO_MANY_LOGIN_ATTEMPTS`, `INVALID_CREDENTIALS`, `WEAK_PASSWORD`, `REQUEST_TOO_LARGE`, `INVALID_HOST`, et `DOMAIN_ERROR` pour une erreur métier sans code plus précis. Un nouveau code s'ajoute dans `ErrorCode` (`backend/api/errors.py`), à un seul endroit ; une erreur métier se déclare dans `backend/domain/errors.py` avec le même code.
 
 ---
 
@@ -466,7 +456,7 @@ tests/
 ├── services/          # Base SQLite en mémoire, intégrations remplacées par des faux
 ├── repositories/      # Dont les tests d'isolation entre utilisateurs
 ├── api/               # httpx contre l'application FastAPI
-├── integrations/      # Parseurs sur des fichiers d'exemple, Google simulé
+├── integrations/      # Parseurs sur des fichiers d'exemple, export .ics
 └── fixtures/
     ├── documents/     # PDF et Markdown d'exemple, dont des fichiers piégés
     └── factories.py
@@ -511,7 +501,7 @@ Format : `AAAAMMJJ_HHMM_<description en snake_case>.py`, réglé par `file_templ
 
 ## 9. Variables d'environnement
 
-`UPPER_SNAKE_CASE`, préfixe `MYPLAN_` pour les réglages propres à l'application. Toutes listées, sans valeur secrète, dans `.env.example`.
+`UPPER_SNAKE_CASE`, préfixe `MYPLAN_`. Toutes listées, sans valeur secrète, dans `.env.example`, et lues à un seul endroit : `backend/core/config.py` (pydantic-settings).
 
 ```env
 MYPLAN_ENV=dev
@@ -523,16 +513,11 @@ MYPLAN_JWT_ACCESS_TTL_MIN=15
 MYPLAN_JWT_REFRESH_TTL_DAYS=7
 MYPLAN_FERNET_KEY=
 MYPLAN_CORS_ORIGINS=http://localhost:8501
+MYPLAN_ALLOWED_HOSTS=localhost,127.0.0.1
 MYPLAN_API_BASE_URL=http://localhost:8000
-
-GOOGLE_CLIENT_ID=
-GOOGLE_CLIENT_SECRET=
-GOOGLE_REDIRECT_URI=http://localhost:8000/api/v1/google/callback
-
-ANTHROPIC_API_KEY=
 ```
 
-Les variables des services externes gardent le nom que leur bibliothèque attend (`ANTHROPIC_API_KEY`), sans préfixe. Elles sont lues à un seul endroit : `backend/core/config.py` (pydantic-settings).
+Aucun service externe : pas de clé Google ni de clé d'API d'IA (le produit n'appelle aucune IA, [SPEC.md](../SPEC.md) §5).
 
 ---
 
@@ -637,7 +622,7 @@ Lot :
 """
 ```
 
-La première ligne nomme le **type** et le **nom** de l'élément principal du fichier : `Repository : CourseRepository`, `Service : PlanningService`, `Domaine : planner`, `Router : /api/v1/plans`, `Page : Planning`, `Modèle : Course`, `Schémas : courses`, `Intégration : GoogleCalendarClient`, `Tests : planner`.
+La première ligne nomme le **type** et le **nom** de l'élément principal du fichier : `Repository : CourseRepository`, `Service : PlanningService`, `Domaine : planner`, `Router : /plan`, `Page : Planning`, `Modèle : Course`, `Schémas : courses`, `Intégration : IcsExporter`, `Tests : planner`.
 
 #### Rubriques
 
@@ -699,22 +684,22 @@ Router :
 ```python
 """
 ===============================================================================
-Router : /api/v1/plans
+Router : /plan
 ===============================================================================
 Objectif :
-    Exposer la génération et la gestion des plannings.
+    Exposer la génération du planning hebdomadaire et son export (blocs 3 et 4).
 
 Endpoints :
-    POST  /api/v1/plans                          Génère un nouveau brouillon
-    GET   /api/v1/plans/{plan_id}/study-sessions Liste les sessions d'un planning
-    POST  /api/v1/plans/{plan_id}/activate       Fait d'un brouillon le planning actif
+    POST  /plan/generate      Génère le planning d'une semaine ISO (contrat)
+    GET   /plan?week=         Renvoie les sessions d'une semaine (contrat)
+    GET   /plan.ics           Exporte les sessions en calendrier (contrat)
 
 Sécurité :
-    Utilisateur connecté uniquement. Chaque plan_id est cherché avec le
-    user_id courant : un planning d'un autre utilisateur répond 404.
+    Utilisateur connecté uniquement. Les sessions sont toujours cherchées avec
+    le user_id courant : celles d'un autre utilisateur ne sont jamais renvoyées.
 
 Lot :
-    C (planification)
+    C (planification) ; GET /plan.ics : D (agenda et suivi)
 ===============================================================================
 """
 ```

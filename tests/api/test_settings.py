@@ -13,7 +13,7 @@ Lot :
 
 import pytest
 
-SETTINGS = "/api/v1/settings"
+SETTINGS = "/settings"
 
 
 @pytest.fixture
@@ -26,8 +26,8 @@ def test_new_account_has_default_settings(client, headers):
 
     assert response.json() == {
         "reading_speed_wpm": 200,
-        "max_session_min": 90,
-        "break_min": 15,
+        "session_minutes": 60,
+        "break_min": 0,
         "mastery_goal": "standard",
         "retention_threshold": 0.7,
     }
@@ -35,11 +35,11 @@ def test_new_account_has_default_settings(client, headers):
 
 def test_update_changes_only_sent_fields(client, headers):
     response = client.patch(
-        SETTINGS, json={"max_session_min": 60, "mastery_goal": "mastery"}, headers=headers
+        SETTINGS, json={"session_minutes": 60, "mastery_goal": "mastery"}, headers=headers
     )
 
     body = response.json()
-    assert (body["max_session_min"], body["mastery_goal"]) == (60, "mastery")
+    assert (body["session_minutes"], body["mastery_goal"]) == (60, "mastery")
     assert body["reading_speed_wpm"] == 200
     assert client.get(SETTINGS, headers=headers).json() == body
 
@@ -47,8 +47,8 @@ def test_update_changes_only_sent_fields(client, headers):
 @pytest.mark.parametrize(
     "payload",
     [
-        {"max_session_min": 5},
-        {"max_session_min": 600},
+        {"session_minutes": 5},
+        {"session_minutes": 600},
         {"reading_speed_wpm": 0},
         {"break_min": -1},
         {"mastery_goal": "expert"},

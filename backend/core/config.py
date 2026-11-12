@@ -29,7 +29,7 @@ from pathlib import Path
 from typing import Literal
 
 from cryptography.fernet import Fernet
-from pydantic import AliasChoices, Field, SecretStr, field_validator
+from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # =============================================================================
@@ -68,20 +68,6 @@ class Settings(BaseSettings):
     api_base_url: str = "http://localhost:8000"
     # Noms d'hôte acceptés dans l'en-tête Host, séparés par des virgules.
     allowed_hosts: str = "localhost,127.0.0.1"
-
-    # Les variables des services externes gardent le nom attendu par leur
-    # bibliothèque, sans préfixe (conventions §9).
-    google_client_id: str = Field(default="", validation_alias=AliasChoices("GOOGLE_CLIENT_ID"))
-    google_client_secret: SecretStr = Field(
-        default=SecretStr(""), validation_alias=AliasChoices("GOOGLE_CLIENT_SECRET")
-    )
-    google_redirect_uri: str = Field(
-        default="http://localhost:8000/api/v1/google/callback",
-        validation_alias=AliasChoices("GOOGLE_REDIRECT_URI"),
-    )
-    anthropic_api_key: SecretStr = Field(
-        default=SecretStr(""), validation_alias=AliasChoices("ANTHROPIC_API_KEY")
-    )
 
     @field_validator("jwt_secret_key")
     @classmethod

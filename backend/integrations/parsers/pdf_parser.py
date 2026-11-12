@@ -3,11 +3,11 @@
 Intégration : PdfParser
 ===============================================================================
 Objectif :
-    Extraire texte, titres et signets d'un PDF via PyMuPDF (P0-04).
+    Extraire texte, titres et signets d'un PDF avec pypdf (P0-04, bloc 1).
 
 Responsabilités :
-    - Remplir blocks (texte + taille de police) et outline (table des matières).
-    - Lever EMPTY_TEXT, SCANNED_PDF ou TIMEOUT selon le cas.
+    - Remplir blocks (texte + taille de police) et outline (signets).
+    - Lever INVALID_BYTES, EMPTY_TEXT, SCANNED_PDF ou TIMEOUT selon le cas.
     - Respecter une limite de temps et de pages (PDF piégés).
 
 Utilisé par :
@@ -19,6 +19,11 @@ Lève :
 Exemple d'utilisation :
     parsed = PdfParser().parse(Path("cours.pdf"))
 
+Notes :
+    Écrit d'abord avec PyMuPDF par le lot B, porté sur pypdf (recommandé par
+    le sujet ; PyMuPDF est sous licence AGPL) sans changer le contrat : mêmes
+    blocs, mêmes niveaux de titre, mêmes codes d'erreur, mêmes tests.
+
 Lot :
     B (ingestion)
 ===============================================================================
@@ -27,9 +32,12 @@ Lot :
 from __future__ import annotations
 
 import time
+from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
-import fitz
+from pypdf import PdfReader
+from pypdf.errors import PyPdfError
 
 from backend.domain.documents import OutlineEntry, ParsedDocument, TextBlock
 from backend.domain.enums import DocumentType, ExtractionErrorCode
@@ -43,6 +51,22 @@ DEFAULT_TIMEOUT_SEC = 15.0
 MAX_PAGES = 500  # au-delà, PDF probablement piégé
 # En dessous de ce ratio caractères / page, on considère un scan sans OCR.
 MIN_CHARS_PER_PAGE = 20
+# Deux fragments dont la ligne de base diffère de moins que ceci sont sur la même ligne.
+SAME_LINE_TOLERANCE = 2.0
+
+
+# =============================================================================
+# Types
+# =============================================================================
+
+
+@dataclass
+class _Line:
+    """Ligne de texte reconstituée à partir des fragments de pypdf."""
+
+    baseline: float
+    parts: list[str] = field(default_factory=list)
+    font_size: float = 0.0
 
 
 # =============================================================================
@@ -51,7 +75,7 @@ MIN_CHARS_PER_PAGE = 20
 
 
 class PdfParser:
-    """Parseur PDF basé sur PyMuPDF."""
+    """Parseur PDF basé sur pypdf."""
 
     def __init__(
         self,
@@ -73,49 +97,38 @@ class PdfParser:
         """
         started = time.monotonic()
         try:
-            document = fitz.open(path)
-        except Exception as exc:  # noqa: BLE001 — PyMuPDF lève plusieurs types
-            raise ExtractionError(
-                ExtractionErrorCode.INVALID_BYTES,
-                "PDF illisible",
-            ) from exc
+            reader = PdfReader(path)
+            page_count = len(reader.pages)
+        except (PyPdfError, OSError, ValueError) as exc:
+            raise ExtractionError(ExtractionErrorCode.INVALID_BYTES, "PDF illisible") from exc
 
-        try:
-            if document.page_count == 0:
-                raise ExtractionError(ExtractionErrorCode.EMPTY_TEXT)
-            if document.page_count > self._max_pages:
-                raise ExtractionError(
-                    ExtractionErrorCode.TIMEOUT,
-                    "PDF trop long",
-                )
+        if page_count == 0:
+            raise ExtractionError(ExtractionErrorCode.EMPTY_TEXT)
+        if page_count > self._max_pages:
+            raise ExtractionError(ExtractionErrorCode.TIMEOUT, "PDF trop long")
 
-            outline = _read_outline(document)
-            blocks: list[TextBlock] = []
-            total_chars = 0
+        outline = _read_outline(reader)
+        blocks: list[TextBlock] = []
+        total_chars = 0
 
-            for page_index in range(document.page_count):
-                if time.monotonic() - started > self._timeout_sec:
-                    raise ExtractionError(ExtractionErrorCode.TIMEOUT)
-                page = document.load_page(page_index)
-                page_number = page_index + 1
-                page_blocks, page_chars = _blocks_from_page(page, page_number)
-                blocks.extend(page_blocks)
-                total_chars += page_chars
+        for page_index, page in enumerate(reader.pages):
+            if time.monotonic() - started > self._timeout_sec:
+                raise ExtractionError(ExtractionErrorCode.TIMEOUT)
+            page_blocks, page_chars = _blocks_from_page(page, page_index + 1)
+            blocks.extend(page_blocks)
+            total_chars += page_chars
 
-            if total_chars == 0:
-                # Aucun texte extractible : scan probable (OCR = P3).
-                raise ExtractionError(ExtractionErrorCode.SCANNED_PDF)
+        if total_chars == 0:
+            # Aucun texte extractible : scan probable (OCR = P3).
+            raise ExtractionError(ExtractionErrorCode.SCANNED_PDF)
 
-            avg = total_chars / document.page_count
-            if avg < MIN_CHARS_PER_PAGE and not outline:
-                raise ExtractionError(ExtractionErrorCode.SCANNED_PDF)
+        if total_chars / page_count < MIN_CHARS_PER_PAGE and not outline:
+            raise ExtractionError(ExtractionErrorCode.SCANNED_PDF)
 
-            if not blocks:
-                raise ExtractionError(ExtractionErrorCode.EMPTY_TEXT)
+        if not blocks:
+            raise ExtractionError(ExtractionErrorCode.EMPTY_TEXT)
 
-            return ParsedDocument(blocks=tuple(blocks), outline=tuple(outline))
-        finally:
-            document.close()
+        return ParsedDocument(blocks=tuple(blocks), outline=tuple(outline))
 
 
 # =============================================================================
@@ -123,51 +136,63 @@ class PdfParser:
 # =============================================================================
 
 
-def _read_outline(document: fitz.Document) -> list[OutlineEntry]:
-    """Convertit la TOC PyMuPDF en OutlineEntry (pages 1-indexées)."""
+def _read_outline(reader: PdfReader) -> list[OutlineEntry]:
+    """Convertit les signets en OutlineEntry (niveau d'imbrication, pages 1-indexées)."""
     entries: list[OutlineEntry] = []
-    for item in document.get_toc(simple=True):
-        # item = [level, title, page]
-        if len(item) < 3:
-            continue
-        level, title, page = item[0], str(item[1]).strip(), int(item[2])
-        if not title or page < 1:
-            continue
-        entries.append(OutlineEntry(title=title, level=level, page=page))
+
+    def walk(items: list[Any], level: int) -> None:
+        for item in items:
+            if isinstance(item, list):
+                walk(item, level + 1)
+                continue
+            title = str(getattr(item, "title", "") or "").strip()
+            try:
+                page = reader.get_destination_page_number(item) + 1
+            except (PyPdfError, KeyError, TypeError, ValueError):
+                continue
+            if title and page >= 1:
+                entries.append(OutlineEntry(title=title, level=level, page=page))
+
+    try:
+        walk(reader.outline, 1)
+    except PyPdfError:
+        return []
     return entries
 
 
-def _blocks_from_page(page: fitz.Page, page_number: int) -> tuple[list[TextBlock], int]:
-    """Extrait des TextBlock à partir du dict de la page."""
+def _blocks_from_page(page: Any, page_number: int) -> tuple[list[TextBlock], int]:
+    """Extrait des TextBlock, une ligne par bloc, avec sa plus grande taille de police."""
+    lines: list[_Line] = []
+
+    def visitor(text: str, cm: Any, tm: Any, _font_dict: Any, font_size: float) -> None:
+        if not text.strip():
+            return
+        baseline = float(tm[5]) if tm else 0.0
+        # Taille réelle = taille de police × échelle verticale de la matrice de texte.
+        scale = abs(float(tm[3])) if tm and tm[3] else 1.0
+        scale *= abs(float(cm[3])) if cm and cm[3] else 1.0
+        size = float(font_size or 0.0) * scale
+        line = next((ln for ln in lines if abs(ln.baseline - baseline) < SAME_LINE_TOLERANCE), None)
+        if line is None:
+            line = _Line(baseline=baseline)
+            lines.append(line)
+        line.parts.append(text.strip())
+        line.font_size = max(line.font_size, size)
+
+    page.extract_text(visitor_text=visitor)
+
     blocks: list[TextBlock] = []
     chars = 0
-    payload = page.get_text("dict")
-    for block in payload.get("blocks", []):
-        if block.get("type") != 0:
+    for line in lines:
+        text = " ".join(line.parts).strip()
+        if not text:
             continue
-        lines_text: list[str] = []
-        sizes: list[float] = []
-        for line in block.get("lines", []):
-            spans = line.get("spans", [])
-            line_parts = [span.get("text", "") for span in spans]
-            line_text = "".join(line_parts).strip()
-            if not line_text:
-                continue
-            lines_text.append(line_text)
-            for span in spans:
-                size = float(span.get("size", 0.0))
-                if size > 0:
-                    sizes.append(size)
-        if not lines_text:
-            continue
-        text = "\n".join(lines_text)
         chars += len(text)
-        font_size = max(sizes) if sizes else None
-        heading_level = _guess_heading_level(font_size, text)
+        font_size = line.font_size or None
         blocks.append(
             TextBlock(
                 text=text,
-                heading_level=heading_level,
+                heading_level=_guess_heading_level(font_size, text),
                 page=page_number,
                 font_size=font_size,
             )

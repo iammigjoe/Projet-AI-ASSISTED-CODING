@@ -2,7 +2,17 @@
 
 Le [README](../README.md) décrit *où* va le code (six couches). Ce document décrit *pourquoi les classes ont la forme qu'elles ont* : quel principe chaque découpage sert, et ce qu'il coûterait de ne pas le respecter.
 
-**Le code n'existe pas encore.** Les classes ci-dessous sont celles que l'équipe s'engage à écrire ; leurs noms suivent les [conventions de nommage](conventions_de_nommage.md). Quand le code s'en écartera, c'est ce document qui sera corrigé, dans la même pull request, avec la raison de l'écart.
+**Ce document a été écrit avant le code.** Les classes ci-dessous sont celles que l'équipe s'engage à écrire ; leurs noms suivent les [conventions de nommage](conventions_de_nommage.md). Quand le code s'en écarte, c'est ce document qui est corrigé, avec la raison de l'écart.
+
+> **Réaligné sur le sujet StudyPlan le 12/11/2026.** Trois parties décrivent des classes **qui ne seront pas codées**, et restent ici comme exemples du raisonnement :
+>
+> | Partie | Ce qui change | Pourquoi |
+> |---|---|---|
+> | `GoogleCalendarClient`, `BusyTimeReader`, `CalendarWriter` (§1, §3, §4, §5) | Remplacés par un seul `IcsExporter`, qui écrit les sessions en `.ics` | Le bloc 4 du sujet demande un export `.ics`, pas de synchronisation |
+> | `LlmClient`, `AnthropicLlmClient`, `SummaryService` (§6) | Supprimés | Le produit n'appelle aucune IA (sujet §1) |
+> | `CalendarSyncService` (§1) | Remplacé par la route `GET /plan.ics` du lot D | Idem |
+>
+> Le principe défendu en §5 (ISP) vaut toujours : `IcsExporter` n'a qu'une méthode, parce qu'un export `.ics` ne sait qu'écrire. Le §6 (DIP) vaut toujours pour l'horloge injectée et pour `DocumentParser`, qui a deux implémentations (`PdfParser` avec `pypdf`, `MarkdownParser`).
 
 ---
 
