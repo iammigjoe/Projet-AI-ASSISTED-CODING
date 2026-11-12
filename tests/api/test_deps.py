@@ -59,8 +59,8 @@ def test_missing_token_returns_401_with_bearer_challenge(me_route, client):
     "make_token",
     [
         lambda user_id: "not-a-token",
-        lambda user_id: create_refresh_token(user_id, datetime.now(UTC)),
-        lambda user_id: create_access_token(user_id, datetime.now(UTC) - timedelta(hours=2)),
+        lambda user_id: create_refresh_token(user_id, 0, datetime.now(UTC)),
+        lambda user_id: create_access_token(user_id, 0, datetime.now(UTC) - timedelta(hours=2)),
     ],
     ids=["garbage", "refresh-token", "expired"],
 )
@@ -86,3 +86,16 @@ def test_token_of_user_pending_deletion_returns_401(me_route, client, engine, us
     response = client.get("/test/me", headers=auth_headers(user.id))
 
     assert response.status_code == 401
+
+
+def test_token_of_previous_version_is_revoked(me_route, client, engine, user, auth_headers):
+    session = sessionmaker(bind=engine)()
+    session.get(User, user.id).token_version = 1
+    session.commit()
+    session.close()
+
+    old_token = client.get("/test/me", headers=auth_headers(user.id, token_version=0))
+    new_token = client.get("/test/me", headers=auth_headers(user.id, token_version=1))
+
+    assert old_token.status_code == 401
+    assert new_token.status_code == 200

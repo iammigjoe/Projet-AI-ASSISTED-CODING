@@ -1,8 +1,8 @@
 """create mvp tables
 
-Revision ID: cc8d71f576d4
+Revision ID: 9be33fb072bc
 Revises: 
-Create Date: 2026-11-12 11:58:04.692562+00:00
+Create Date: 2026-11-12 12:15:14.897307+00:00
 
 """
 from typing import Sequence, Union
@@ -14,7 +14,7 @@ import backend.db.types
 
 
 # revision identifiers, used by Alembic.
-revision: str = 'cc8d71f576d4'
+revision: str = '9be33fb072bc'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -28,10 +28,12 @@ def upgrade() -> None:
     sa.Column('email', sa.String(length=254), nullable=False),
     sa.Column('password_hash', sa.String(length=255), nullable=False),
     sa.Column('timezone', sa.String(length=64), nullable=False),
+    sa.Column('token_version', sa.Integer(), nullable=False),
     sa.Column('deleted_at', backend.db.types.UtcDateTime(length=20), nullable=True),
     sa.Column('created_at', backend.db.types.UtcDateTime(length=20), nullable=False),
     sa.Column('updated_at', backend.db.types.UtcDateTime(length=20), nullable=False),
     sa.CheckConstraint('email = lower(email)', name=op.f('ck_users_email_lowercase')),
+    sa.CheckConstraint('token_version >= 0', name=op.f('ck_users_token_version_not_negative')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_users')),
     sa.UniqueConstraint('email', name=op.f('uq_users_email'))
     )

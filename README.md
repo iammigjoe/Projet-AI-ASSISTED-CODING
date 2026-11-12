@@ -223,6 +223,7 @@ myplan/
 | [Conventions de nommage](docs/conventions_de_nommage.md) | Nommage du code, de la base, des routes, des tests et des branches ; format des erreurs de l'API |
 | [Modèle de données](docs/modele_donnees.md) | Dictionnaire, règles de gestion, MCD, MLD et choix physiques SQLite ; écarts avec les specs et questions ouvertes |
 | [Diagrammes de classes](docs/diagramme_classes.md) | SOLID appliqué aux classes prévues : où sont les interfaces, et où il n'y en a volontairement pas |
+| [Sécurité](docs/securite.md) | Protections en place (force brute, XSS, jetons, en-têtes…), limites connues, règles à suivre par chaque lot |
 | [Répartition des tâches](docs/repartition_taches.md) | Quatre lots verticaux, contrats à fixer ensemble, dépendances, relectures croisées, calendrier par phase |
 
 ## Équipe

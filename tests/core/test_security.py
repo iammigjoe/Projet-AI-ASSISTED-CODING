@@ -19,6 +19,7 @@ from cryptography.fernet import InvalidToken
 
 from backend.core.security import (
     InvalidTokenError,
+    TokenClaims,
     TokenType,
     create_access_token,
     create_refresh_token,
@@ -26,6 +27,7 @@ from backend.core.security import (
     decrypt_secret,
     encrypt_secret,
     hash_password,
+    verify_login_password,
     verify_password,
 )
 
@@ -49,27 +51,27 @@ def test_verify_password_with_corrupted_hash_returns_false():
 
 
 def test_access_token_round_trips_user_id():
-    token = create_access_token(42, NOW)
+    token = create_access_token(42, 0, NOW)
 
-    assert decode_token(token, TokenType.ACCESS) == 42
+    assert decode_token(token, TokenType.ACCESS) == TokenClaims(user_id=42, token_version=0)
 
 
 def test_refresh_token_is_refused_as_access_token():
-    token = create_refresh_token(42, NOW)
+    token = create_refresh_token(42, 0, NOW)
 
     with pytest.raises(InvalidTokenError):
         decode_token(token, TokenType.ACCESS)
 
 
 def test_access_token_is_refused_as_refresh_token():
-    token = create_access_token(42, NOW)
+    token = create_access_token(42, 0, NOW)
 
     with pytest.raises(InvalidTokenError):
         decode_token(token, TokenType.REFRESH)
 
 
 def test_expired_access_token_is_refused():
-    token = create_access_token(42, NOW - timedelta(hours=1))
+    token = create_access_token(42, 0, NOW - timedelta(hours=1))
 
     with pytest.raises(InvalidTokenError):
         decode_token(token, TokenType.ACCESS)
@@ -77,7 +79,7 @@ def test_expired_access_token_is_refused():
 
 def test_token_signed_with_another_key_is_refused():
     forged = jwt.encode(
-        {"sub": "42", "type": "access", "iat": NOW, "exp": NOW + timedelta(minutes=5)},
+        {"sub": "42", "ver": 0, "type": "access", "iat": NOW, "exp": NOW + timedelta(minutes=5)},
         "another-secret-key-of-sufficient-length-000",
         algorithm="HS256",
     )
@@ -88,7 +90,7 @@ def test_token_signed_with_another_key_is_refused():
 
 def test_unsigned_token_is_refused():
     unsigned = jwt.encode(
-        {"sub": "42", "type": "access", "iat": NOW, "exp": NOW + timedelta(minutes=5)},
+        {"sub": "42", "ver": 0, "type": "access", "iat": NOW, "exp": NOW + timedelta(minutes=5)},
         key=None,
         algorithm="none",
     )
@@ -115,3 +117,31 @@ def test_tampered_ciphertext_is_refused():
 
     with pytest.raises(InvalidToken):
         decrypt_secret(bytes(ciphertext))
+
+
+def test_token_carries_token_version():
+    token = create_access_token(42, 3, NOW)
+
+    assert decode_token(token, TokenType.ACCESS).token_version == 3
+
+
+def test_token_without_version_is_refused():
+    legacy = jwt.encode(
+        {"sub": "42", "type": "access", "iat": NOW, "exp": NOW + timedelta(minutes=5)},
+        "test-secret-key-that-is-long-enough-0123456789",
+        algorithm="HS256",
+    )
+
+    with pytest.raises(InvalidTokenError):
+        decode_token(legacy, TokenType.ACCESS)
+
+
+def test_login_password_for_unknown_account_is_false():
+    assert not verify_login_password("any-password-123", None)
+
+
+def test_login_password_for_known_account_checks_hash():
+    password_hash = hash_password("correct horse battery staple")
+
+    assert verify_login_password("correct horse battery staple", password_hash)
+    assert not verify_login_password("wrong password", password_hash)

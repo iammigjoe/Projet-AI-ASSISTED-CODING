@@ -8,8 +8,12 @@ Objectif :
 
 Responsabilités :
     - Hacher les mots de passe avec argon2 ; ne jamais les comparer en clair.
+    - Prendre le même temps qu'un compte existe ou non (verify_login_password),
+      pour qu'on ne puisse pas deviner les emails inscrits en chronométrant.
     - Signer et vérifier les jetons d'accès (courts) et de rafraîchissement ;
       un jeton d'un type n'est jamais accepté pour l'autre.
+    - Inscrire dans chaque jeton la version de jeton du compte : l'incrémenter
+      révoque d'un coup tous les jetons émis (déconnexion, mot de passe changé).
     - Chiffrer et déchiffrer avec Fernet (refresh token Google, lot D).
 
 Utilisé par :
@@ -20,16 +24,19 @@ Lève :
     InvalidTokenError  si un jeton est absent, expiré, mal signé ou du mauvais type
 
 Exemple d'utilisation :
-    token = create_access_token(user_id=user.id, now=clock())
-    user_id = decode_token(token, TokenType.ACCESS)
+    token = create_access_token(user.id, user.token_version, now=clock())
+    claims = decode_token(token, TokenType.ACCESS)
 
 Lot :
     A (socle et sécurité)
 ===============================================================================
 """
 
+import secrets
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import StrEnum
+from functools import cache
 
 import jwt
 from argon2 import PasswordHasher
@@ -58,6 +65,14 @@ class TokenType(StrEnum):
     REFRESH = "refresh"
 
 
+@dataclass(frozen=True)
+class TokenClaims:
+    """Contenu vérifié d'un jeton."""
+
+    user_id: int
+    token_version: int
+
+
 class InvalidTokenError(Exception):
     """Jeton refusé, quelle qu'en soit la raison (la raison n'est pas exposée)."""
 
@@ -73,7 +88,7 @@ def hash_password(password: str) -> str:
 
 
 def verify_password(password: str, password_hash: str) -> bool:
-    """Vérifie un mot de passe contre son hachage, en temps constant.
+    """Vérifie un mot de passe contre son hachage.
 
     Returns:
         True si le mot de passe correspond ; False sinon, y compris si le
@@ -85,25 +100,49 @@ def verify_password(password: str, password_hash: str) -> bool:
         return False
 
 
-def create_access_token(user_id: int, now: datetime) -> str:
+def verify_login_password(password: str, password_hash: str | None) -> bool:
+    """Vérifie un mot de passe de connexion, que le compte existe ou non.
+
+    Sans compte, un hachage factice est quand même vérifié : la réponse prend
+    le même temps, et un attaquant ne peut pas distinguer « email inconnu »
+    de « mauvais mot de passe » en chronométrant.
+
+    Args:
+        password: Mot de passe saisi.
+        password_hash: Hachage du compte, ou None si l'email est inconnu.
+
+    Returns:
+        True seulement si le compte existe et que le mot de passe correspond.
+    """
+    if password_hash is None:
+        verify_password(password, _dummy_hash())
+        return False
+    return verify_password(password, password_hash)
+
+
+def create_access_token(user_id: int, token_version: int, now: datetime) -> str:
     """Crée un jeton d'accès, valable MYPLAN_JWT_ACCESS_TTL_MIN minutes.
 
     Args:
         user_id: Utilisateur authentifié.
+        token_version: Version de jeton actuelle du compte (users.token_version).
         now: Instant de création, avec fuseau (horloge injectée).
     """
     ttl = timedelta(minutes=get_settings().jwt_access_ttl_min)
-    return _create_token(user_id, TokenType.ACCESS, now, ttl)
+    return _create_token(user_id, token_version, TokenType.ACCESS, now, ttl)
 
 
-def create_refresh_token(user_id: int, now: datetime) -> str:
+def create_refresh_token(user_id: int, token_version: int, now: datetime) -> str:
     """Crée un jeton de rafraîchissement, valable MYPLAN_JWT_REFRESH_TTL_DAYS jours."""
     ttl = timedelta(days=get_settings().jwt_refresh_ttl_days)
-    return _create_token(user_id, TokenType.REFRESH, now, ttl)
+    return _create_token(user_id, token_version, TokenType.REFRESH, now, ttl)
 
 
-def decode_token(token: str, expected_type: TokenType) -> int:
-    """Vérifie un jeton et renvoie l'utilisateur qu'il désigne.
+def decode_token(token: str, expected_type: TokenType) -> TokenClaims:
+    """Vérifie un jeton et renvoie ce qu'il contient.
+
+    L'appelant doit encore comparer token_version à celle du compte : un jeton
+    d'une version antérieure a été révoqué.
 
     Args:
         token: Jeton reçu du client.
@@ -111,7 +150,7 @@ def decode_token(token: str, expected_type: TokenType) -> int:
             jamais l'accès à l'API, et inversement.
 
     Returns:
-        L'identifiant de l'utilisateur.
+        L'utilisateur et la version de jeton inscrits dans le jeton.
 
     Raises:
         InvalidTokenError: Si le jeton est expiré, mal signé, mal formé ou
@@ -121,8 +160,9 @@ def decode_token(token: str, expected_type: TokenType) -> int:
         claims = jwt.decode(
             token,
             get_settings().jwt_secret_key.get_secret_value(),
+            # Liste fermée : « none » et les algorithmes asymétriques sont refusés.
             algorithms=[JWT_ALGORITHM],
-            options={"require": ["exp", "iat", "sub", "type"]},
+            options={"require": ["exp", "iat", "sub", "type", "ver"]},
         )
     except jwt.PyJWTError as error:
         raise InvalidTokenError from error
@@ -130,8 +170,8 @@ def decode_token(token: str, expected_type: TokenType) -> int:
     if claims["type"] != expected_type:
         raise InvalidTokenError
     try:
-        return int(claims["sub"])
-    except ValueError as error:
+        return TokenClaims(user_id=int(claims["sub"]), token_version=int(claims["ver"]))
+    except (TypeError, ValueError) as error:
         raise InvalidTokenError from error
 
 
@@ -155,11 +195,25 @@ def decrypt_secret(ciphertext: bytes) -> str:
 # =============================================================================
 
 
-def _create_token(user_id: int, token_type: TokenType, now: datetime, ttl: timedelta) -> str:
-    claims = {"sub": str(user_id), "type": token_type.value, "iat": now, "exp": now + ttl}
+def _create_token(
+    user_id: int, token_version: int, token_type: TokenType, now: datetime, ttl: timedelta
+) -> str:
+    claims = {
+        "sub": str(user_id),
+        "ver": token_version,
+        "type": token_type.value,
+        "iat": now,
+        "exp": now + ttl,
+    }
     return jwt.encode(
         claims, get_settings().jwt_secret_key.get_secret_value(), algorithm=JWT_ALGORITHM
     )
+
+
+@cache
+def _dummy_hash() -> str:
+    """Hachage d'un secret aléatoire jamais conservé, calculé une seule fois."""
+    return _password_hasher.hash(secrets.token_urlsafe(32))
 
 
 def _fernet() -> Fernet:

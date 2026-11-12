@@ -16,6 +16,7 @@ Ces specs disent **quoi** construire. Les documents de `docs/` disent **comment*
 | [docs/modele_donnees.md](docs/modele_donnees.md) | Tables, colonnes, contraintes, règles de gestion RG1 à RG15, questions ouvertes |
 | [docs/diagramme_classes.md](docs/diagramme_classes.md) | Classes, interfaces et leurs contrats |
 | [docs/repartition_taches.md](docs/repartition_taches.md) | Lots, responsables, contrats de la phase 0, relectures, calendrier |
+| [docs/securite.md](docs/securite.md) | Protections en place et règles de sécurité à suivre dans chaque route et chaque page |
 
 Quand ces specs et un document de `docs/` divergent, l'écart est corrigé des deux côtés dans la même pull request.
 
@@ -148,7 +149,7 @@ Le détail (types, contraintes, règles de gestion, MCD, MLD) est dans [docs/mod
 
 | Table | Champs principaux |
 |---|---|
-| `users` | id, email, password_hash, timezone, deleted_at |
+| `users` | id, email, password_hash, timezone, token_version, deleted_at |
 | `user_settings` | user_id, reading_speed_wpm, max_session_min, break_min, mastery_goal, retention_threshold, notif_prefs |
 | `courses` | id, user_id, name, color, difficulty |
 | `documents` | id, course_id, filename_original, storage_key, type, size_bytes, sha256, status, error_code, uploaded_at |

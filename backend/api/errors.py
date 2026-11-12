@@ -52,6 +52,11 @@ class ErrorCode(StrEnum):
     METHOD_NOT_ALLOWED = "METHOD_NOT_ALLOWED"
     CONFLICT = "CONFLICT"
     RATE_LIMITED = "RATE_LIMITED"
+    TOO_MANY_LOGIN_ATTEMPTS = "TOO_MANY_LOGIN_ATTEMPTS"
+    INVALID_CREDENTIALS = "INVALID_CREDENTIALS"
+    WEAK_PASSWORD = "WEAK_PASSWORD"  # noqa: S105  # code d'erreur, pas un secret
+    REQUEST_TOO_LARGE = "REQUEST_TOO_LARGE"
+    INVALID_HOST = "INVALID_HOST"
     INTERNAL_ERROR = "INTERNAL_ERROR"
 
     # --- Ingestion (lot B) ------------------------------------------------
@@ -79,6 +84,10 @@ _HTTP_CODES: dict[int, tuple[ErrorCode, str]] = {
     status.HTTP_405_METHOD_NOT_ALLOWED: (
         ErrorCode.METHOD_NOT_ALLOWED,
         "Méthode non autorisée sur cette adresse.",
+    ),
+    status.HTTP_413_CONTENT_TOO_LARGE: (
+        ErrorCode.REQUEST_TOO_LARGE,
+        "La requête dépasse la taille autorisée.",
     ),
 }
 

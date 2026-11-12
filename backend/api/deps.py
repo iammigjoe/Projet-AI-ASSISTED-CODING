@@ -79,17 +79,18 @@ def get_current_user(
 
     Raises:
         ApiError: 401 UNAUTHORIZED si le jeton est absent, invalide, expiré, de
-            type « refresh », ou si le compte n'existe plus.
+            type « refresh », révoqué, ou si le compte n'existe plus.
     """
     if credentials is None:
         raise _unauthorized()
     try:
-        user_id = decode_token(credentials.credentials, TokenType.ACCESS)
+        claims = decode_token(credentials.credentials, TokenType.ACCESS)
     except InvalidTokenError:
         raise _unauthorized() from None
 
-    user = UserRepository(session).get_active(user_id)
-    if user is None:
+    user = UserRepository(session).get_active(claims.user_id)
+    # Version différente : le jeton a été révoqué (déconnexion, mot de passe changé).
+    if user is None or user.token_version != claims.token_version:
         raise _unauthorized()
     return user
 

@@ -66,6 +66,8 @@ class Settings(BaseSettings):
     # Liste séparée par des virgules : « http://localhost:8501,https://myplan.fr ».
     cors_origins: str = "http://localhost:8501"
     api_base_url: str = "http://localhost:8000"
+    # Noms d'hôte acceptés dans l'en-tête Host, séparés par des virgules.
+    allowed_hosts: str = "localhost,127.0.0.1"
 
     # Les variables des services externes gardent le nom attendu par leur
     # bibliothèque, sans préfixe (conventions §9).
@@ -108,7 +110,17 @@ class Settings(BaseSettings):
     @property
     def cors_origin_list(self) -> list[str]:
         """Origines autorisées par CORS, sans espaces ni entrées vides."""
-        return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+        return _split_list(self.cors_origins)
+
+    @property
+    def max_request_bytes(self) -> int:
+        """Taille maximale d'un corps de requête : un upload, plus l'enveloppe multipart."""
+        return self.max_upload_bytes + 1024 * 1024
+
+    @property
+    def allowed_host_list(self) -> list[str]:
+        """Noms d'hôte acceptés, sans espaces ni entrées vides."""
+        return _split_list(self.allowed_hosts)
 
 
 @lru_cache
@@ -123,3 +135,13 @@ def get_settings() -> Settings:
             le message nomme la variable en cause.
     """
     return Settings()  # type: ignore[call-arg]  # valeurs fournies par l'environnement
+
+
+# =============================================================================
+# Fonctions internes
+# =============================================================================
+
+
+def _split_list(value: str) -> list[str]:
+    """Découpe une liste séparée par des virgules, sans espaces ni entrées vides."""
+    return [item.strip() for item in value.split(",") if item.strip()]

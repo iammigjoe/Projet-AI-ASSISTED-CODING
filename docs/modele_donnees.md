@@ -18,6 +18,7 @@ Types SQLite : `INTEGER`, `REAL`, `TEXT`, `BLOB`. Un booléen est un `INTEGER` �
 | `email` | TEXT | NOT NULL, UNIQUE | Stocké en minuscules : `Alice@x.fr` et `alice@x.fr` sont le même compte |
 | `password_hash` | TEXT | NOT NULL | argon2, jamais le mot de passe |
 | `timezone` | TEXT | NOT NULL, défaut `Europe/Paris` | Nom IANA, pas un décalage (`+01:00`) : un décalage ne suit pas les changements d'heure |
+| `token_version` | INTEGER | NOT NULL, défaut `0`, ≥ 0 | Inscrite dans chaque jeton ; l'incrémenter révoque tous les jetons émis (déconnexion, mot de passe changé, [securite.md](securite.md)) |
 | `deleted_at` | TEXT | NULL | Suppression demandée : le compte est bloqué tout de suite, ses lignes sont supprimées une fois Google Agenda nettoyé (RG15) |
 
 ### PARAMÈTRES (`user_settings`)
@@ -269,7 +270,7 @@ Une seule association porteuse d'une cardinalité N-N : `CONCERNE`, qui devient 
 `#` = clé primaire, `→` = clé étrangère.
 
 ```text
-users (#id, email, password_hash, timezone, deleted_at, created_at, updated_at)
+users (#id, email, password_hash, timezone, token_version, deleted_at, created_at, updated_at)
 
 user_settings (#user_id→users, reading_speed_wpm, max_session_min, break_min,
                mastery_goal, retention_threshold, notif_prefs, created_at, updated_at)
