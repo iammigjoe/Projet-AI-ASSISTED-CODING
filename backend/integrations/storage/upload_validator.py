@@ -40,6 +40,12 @@ from backend.domain.errors import (
 PDF_MAGIC = b"%PDF"
 HEADER_WINDOW = 16
 MARKDOWN_SAMPLE = 4096
+# Extensions acceptées et type de contenu attendu pour chacune.
+ALLOWED_EXTENSIONS = {
+    ".pdf": DocumentType.PDF,
+    ".md": DocumentType.MARKDOWN,
+    ".markdown": DocumentType.MARKDOWN,
+}
 
 
 # =============================================================================
@@ -98,3 +104,27 @@ def detect_document_type(header_bytes: bytes) -> DocumentType:
         raise UnsupportedFileTypeError("Le fichier n'est ni un PDF ni du texte UTF-8") from exc
 
     return DocumentType.MARKDOWN
+
+
+def check_extension(filename: str, file_type: DocumentType) -> None:
+    """Vérifie que l'extension annoncée correspond au contenu réel.
+
+    Le type vient toujours du contenu (magic bytes) ; l'extension sert seulement
+    à refuser un fichier qui ment : un « .pdf » qui ne contient que du texte ne
+    doit pas devenir une matière vide.
+
+    Args:
+        filename: Nom d'origine du fichier.
+        file_type: Type déduit du contenu par detect_document_type.
+
+    Raises:
+        UnsupportedFileTypeError: Extension hors liste blanche, ou différente du contenu.
+    """
+    suffix = filename[filename.rfind(".") :].lower() if "." in filename else ""
+    expected = ALLOWED_EXTENSIONS.get(suffix)
+    if expected is None:
+        raise UnsupportedFileTypeError("Seuls les fichiers .pdf et .md sont acceptés.")
+    if expected is not file_type:
+        raise UnsupportedFileTypeError(
+            f"Le contenu de ce fichier ne correspond pas à son extension {suffix}."
+        )

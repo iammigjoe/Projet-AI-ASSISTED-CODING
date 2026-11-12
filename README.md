@@ -43,7 +43,7 @@ Les données de démo du sujet sont dans [`sample_data/`](sample_data/) : 3 cour
 
 Parcours de démo du sujet : **import → planning → `.ics` → tableau de bord**.
 
-1. Importer les 3 cours de `sample_data/` (page Documents).
+1. Importer les 3 cours de `sample_data/` (page Importer, plusieurs fichiers à la fois).
 2. Saisir les échéances de `deadlines.csv` et les créneaux de `availability.json` (pages Échéances et Disponibilités).
 3. Générer le planning de la semaine (page Planning), marquer une session faite.
 4. Télécharger le `.ics` et l'ouvrir dans Google Agenda ou Outlook.

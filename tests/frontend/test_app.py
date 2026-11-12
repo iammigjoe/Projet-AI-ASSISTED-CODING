@@ -208,3 +208,53 @@ def test_page_cannot_be_opened_without_login(app_test):
         app_test.switch_page("views/courses.py")
 
     assert app_test.title[0].value == "MyPlan"
+
+
+# =============================================================================
+# Import de cours (bloc 1)
+# =============================================================================
+
+SAMPLE_DATA = APP.parents[1] / "sample_data"
+FIXTURES = APP.parents[1] / "tests" / "fixtures" / "documents"
+
+
+def _upload(at: AppTest, *files: tuple[str, bytes, str]) -> AppTest:
+    at.switch_page("views/documents.py").run()
+    at.get("file_uploader")[0].set_value(list(files)).run()
+    _button(at, "Importer").click()
+    return at.run()
+
+
+def _sample(name: str) -> tuple[str, bytes, str]:
+    return (name, (SAMPLE_DATA / name).read_bytes(), "text/markdown")
+
+
+def test_import_page_creates_course_with_chapters(app_test):
+    at = _register(app_test)
+
+    at = _upload(at, _sample("statistics.md"))
+
+    assert not at.exception
+    assert "Statistics for Data Science" in at.success[0].value
+    assert "4 chapitre" in at.success[0].value
+    assert len(at.dataframe[0].value) == 4
+
+
+def test_import_page_imports_several_files_and_reports_each_failure(app_test):
+    at = _register(app_test)
+    fake_pdf = ("fake.pdf", (FIXTURES / "fake.pdf").read_bytes(), "application/pdf")
+
+    at = _upload(at, _sample("statistics.md"), fake_pdf, _sample("statistics.md"))
+
+    assert len(at.success) == 1
+    assert len(at.error) == 2
+    assert all(r"fake\.pdf" in e.value or r"statistics\.md" in e.value for e in at.error)
+
+
+def test_imported_course_appears_on_courses_page(app_test):
+    at = _register(app_test)
+    at = _upload(at, _sample("cloud_mlops.md"))
+
+    at.switch_page("views/courses.py").run()
+
+    assert any("Cloud" in expander.label for expander in at.expander)

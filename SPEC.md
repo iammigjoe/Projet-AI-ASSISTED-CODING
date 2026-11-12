@@ -50,7 +50,7 @@ En plus du sujet, et déjà en place : **compte protégé** (inscription du comp
 |---|---|---|---|---|
 | P0-01 | A | Compte et authentification | **Un seul compte** : inscription ouverte tant qu'aucun compte n'existe, puis fermée (403). Connexion obligatoire pour toutes les routes du contrat. | ✅ |
 | P0-02 | A | Matières | Liste avec avancement (`hours_total`, `hours_done`, `progress`), modification du nom, de la couleur, de la difficulté (1 à 5), suppression en cascade. | ✅ |
-| P0-03 | B | Import d'un cours | `POST /courses` multipart : PDF ou Markdown → matière + document + chapitres. | Validation et stockage faits ; route et enregistrement en base à faire |
+| P0-03 | B | Import d'un cours | `POST /courses` multipart : PDF ou Markdown → matière + document + chapitres. Extension `.pdf`, `.md` ou `.markdown`, cohérente avec le contenu ; un fichier sans chapitre est refusé. Page d'import `frontend/views/documents.py`. | ✅ |
 | P0-04 | B | Extraction du texte | `pypdf` pour le PDF, `markdown-it-py` pour le Markdown ; erreur claire si le PDF est vide ou scanné. | ✅ |
 | P0-05 | B | Détection des chapitres | Markdown : titres `#`/`##` (le `#` de niveau 1 donne le nom de la matière). PDF : signets, sinon heuristique. Détection pure, testable sans fichier. | ✅ |
 | P0-06 | B | Correction des chapitres | Renommer, fusionner, scinder, supprimer avant de planifier. | à faire |
@@ -87,7 +87,7 @@ GET    /plan.ics             -> text/calendar
 
 | Route | Précisions de MyPlan | Lot | État |
 |---|---|---|---|
-| `POST /courses` | Champ `file` ; nom de la matière = titre `#` du Markdown ou nom du fichier ; `hours` en heures, à une décimale | B | à faire |
+| `POST /courses` | Champ `file` ; nom de la matière = titre `#` du Markdown ou nom du fichier ; `hours` en heures, à une décimale ; `409` si la matière existe, `422` si le fichier est refusé ou sans chapitre | B | ✅ |
 | `GET /courses` | En plus : `color`, `difficulty` ; `progress` en pourcentage de 0 à 100 | A | ✅ |
 | `POST /deadlines` | `type` : `exam` ou `assignment` ; `date` : `AAAA-MM-JJ`, aujourd'hui ou plus tard, sinon 422 ; `weight` : 0 à 100 | C | à faire |
 | `PUT /availability` | Clés `monday` à `sunday` ; créneaux `HH:MM-HH:MM`, sans chevauchement ; remplace tous les créneaux ; `session_minutes` de 15 à 240 | C | à faire |
@@ -227,7 +227,7 @@ Dans **`frontend/views/`**, jamais dans `frontend/pages/` : Streamlit exécutera
 | Lot | `frontend/views/` | `frontend/api/` |
 |---|---|---|
 | A | `login.py`, `courses.py`, `settings.py` ✅ | `auth_api.py`, `courses_api.py` ✅ |
-| B | `documents.py` (import) | `documents_api.py` |
+| B | `documents.py` (import) ✅ | `documents_api.py` ✅ |
 | C | `availabilities.py`, `deadlines.py`, `plan.py` | `planning_api.py` |
 | D | `dashboard.py`, composant `components/session_card.py` | `progress_api.py` |
 

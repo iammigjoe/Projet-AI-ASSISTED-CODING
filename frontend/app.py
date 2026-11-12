@@ -48,7 +48,7 @@ PAGES_DIR = Path(__file__).resolve().parent / "views"
 # n'existe pas encore est ignorée (conventions §3).
 MENU = (
     ("courses.py", "Matières", ":material/school:"),
-    ("documents.py", "Documents", ":material/description:"),
+    ("documents.py", "Importer", ":material/upload_file:"),
     ("availabilities.py", "Disponibilités", ":material/event_available:"),
     ("deadlines.py", "Échéances", ":material/flag:"),
     ("plan.py", "Planning", ":material/calendar_month:"),

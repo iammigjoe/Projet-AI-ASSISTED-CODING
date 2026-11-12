@@ -149,3 +149,23 @@ def test_public_route_sends_no_token_and_never_refreshes():
     with pytest.raises(ApiError):
         client.post("/auth/login", json={}, authenticated=False)
     assert seen["auth"] is None
+
+
+def test_import_course_sends_multipart_file_with_mime_type():
+    from frontend.api.documents_api import import_course
+
+    seen = {}
+
+    def handler(request):
+        seen["content_type"] = request.headers["content-type"]
+        seen["body"] = request.content
+        return httpx.Response(
+            201, json={"id": 1, "name": "Stats", "chapters": [], "hours_total": 0}
+        )
+
+    course = import_course(_client(handler), "stats.md", b"# Stats\n")
+
+    assert course["name"] == "Stats"
+    assert seen["content_type"].startswith("multipart/form-data")
+    assert b'filename="stats.md"' in seen["body"]
+    assert b"Content-Type: text/markdown" in seen["body"]
