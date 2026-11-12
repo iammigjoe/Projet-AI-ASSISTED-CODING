@@ -28,7 +28,6 @@ def make_study_session(
     status: SessionStatus = SessionStatus.PLANNED,
     self_rating: int | None = None,
     completed_at: datetime | None = None,
-    google_event_id: str | None = None,
 ) -> StudySession:
     """Crée un objet StudySession non persistant avec des valeurs par défaut valides."""
     if duration_min <= 0:
@@ -43,5 +42,4 @@ def make_study_session(
         status=status,
         self_rating=self_rating,
         completed_at=completed_at,
-        google_event_id=google_event_id,
     )
