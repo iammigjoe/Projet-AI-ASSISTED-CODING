@@ -33,7 +33,7 @@ from backend.api.middleware import (
     SecurityHeadersMiddleware,
 )
 from backend.api.rate_limit import handle_rate_limit_exceeded, limiter
-from backend.api.routers import auth, courses, settings
+from backend.api.routers import auth, courses, documents, settings
 from backend.core.config import get_settings
 
 # =============================================================================
@@ -87,6 +87,7 @@ def create_app() -> FastAPI:
     # --- Routers : une ligne par router, ordre alphabétique -----------------
     app.include_router(auth.router, prefix=API_PREFIX)
     app.include_router(courses.router, prefix=API_PREFIX)
+    app.include_router(documents.router, prefix=API_PREFIX)
     app.include_router(settings.router, prefix=API_PREFIX)
 
     return app

@@ -24,8 +24,9 @@ from backend.services.ingestion_service import IngestionService
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures" / "documents"
 
 
-def _service(tmp_path: Path) -> IngestionService:
+def _service(tmp_path: Path, db_session) -> IngestionService:
     return IngestionService(
+        session=db_session,
         validator=UploadValidator(20_971_520),
         storage=LocalFileStorage(tmp_path),
         parsers=ParserRegistry([MarkdownParser(), PdfParser()]),
@@ -34,8 +35,9 @@ def _service(tmp_path: Path) -> IngestionService:
 
 def test_ingestion_service_accepts_and_processes_machine_learning(
     tmp_path: Path,
+    db_session,
 ) -> None:
-    service = _service(tmp_path)
+    service = _service(tmp_path, db_session)
     data = (FIXTURES / "machine-learning.md").read_bytes()
     settings = StudySettings(200, MasteryGoal.STANDARD)
 
@@ -50,4 +52,4 @@ def test_ingestion_service_accepts_and_processes_machine_learning(
     assert accepted.filename_original == "Machine Learning.md"
     assert accepted.storage_key != "Machine Learning.md"
     assert len(result.chapters) == 5
-    assert all(item.estimated_min >= 1 for item in result.chapters)
+    assert all(item.estimated_min >= 60 for item in result.chapters)
