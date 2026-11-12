@@ -209,14 +209,14 @@ Les specs sont écrites pour être données à un assistant de code. Pour que qu
 
 ### Pour le MVP (phases 0 et 1)
 
-Lots tirés au sort le 12/11/2026, sans tenir compte des profils. L'attribution vaut pour le MVP ; elle sera revue avant la phase 2, avec la rotation des binômes de relecture (§6).
+Lots tirés au sort le 12/11/2026, sans tenir compte des profils, puis lots A et D échangés entre Aminata Yasmine Savane et Marc Steven Mouthoud le même jour. L'attribution vaut pour le MVP ; elle sera revue avant la phase 2, avec la rotation des binômes de relecture (§6).
 
 | Lot | Responsable | Ce qu'il livre pour le MVP | Relu par |
 |---|---|---|---|
-| A. Socle et sécurité | Aminata Yasmine Savane | Squelette, CI, modèles et première migration, branche `develop` ; inscription, connexion, JWT, matières, paramètres d'étude, tests d'isolation | Marc Steven Mouthoud (D) |
-| B. Ingestion | Abraham Miguel Tala | `ParsedDocument`, fichiers d'exemple ; upload sécurisé, extraction PDF et Markdown, détection et édition des chapitres, estimation du temps | Aminata Yasmine Savane (A) |
+| A. Socle et sécurité | Marc Steven Mouthoud | Squelette, CI, modèles et première migration, branche `develop` ; inscription, connexion, JWT, matières, paramètres d'étude, tests d'isolation | Aminata Yasmine Savane (D) |
+| B. Ingestion | Abraham Miguel Tala | `ParsedDocument`, fichiers d'exemple ; upload sécurisé, extraction PDF et Markdown, détection et édition des chapitres, estimation du temps | Marc Steven Mouthoud (A) |
 | C. Planification | Houria Debbioui | Objets de planification ; disponibilités, exceptions, échéances, créneaux libres, planificateur avec message d'infaisabilité, vues liste et calendrier | Abraham Miguel Tala (B) |
-| D. Agenda et suivi | Marc Steven Mouthoud | Fabriques de test ; marquer une session faite ou non faite, composant `session_card.py`, endpoint de progression | Houria Debbioui (C) |
+| D. Agenda et suivi | Aminata Yasmine Savane | Fabriques de test ; marquer une session faite ou non faite, composant `session_card.py`, endpoint de progression | Houria Debbioui (C) |
 
 Le lot D est le plus léger du MVP : Google Agenda et le dashboard n'arrivent qu'en phase 2. Son responsable a donc de la marge pour aider C sur les tests du planificateur, la pièce la plus délicate de la phase 1.
 

@@ -256,12 +256,12 @@ Chaque lot possède un domaine **de bout en bout** : router, service, domaine, r
 
 | Lot | Responsable | Fonctionnalités | Relu par |
 |---|---|---|---|
-| A. Socle et sécurité | Aminata Yasmine Savane | P0-01, P0-02, P0-08, P1-04, P1-07, P2-02, P2-07 | Marc Steven Mouthoud |
-| B. Ingestion | Abraham Miguel Tala | P0-03 → P0-07, P1-06, P2-03 | Aminata Yasmine Savane |
+| A. Socle et sécurité | Marc Steven Mouthoud | P0-01, P0-02, P0-08, P1-04, P1-07, P2-02, P2-07 | Aminata Yasmine Savane |
+| B. Ingestion | Abraham Miguel Tala | P0-03 → P0-07, P1-06, P2-03 | Marc Steven Mouthoud |
 | C. Planification | Houria Debbioui | P0-09 → P0-12, P1-08, P2-01, P2-06 | Abraham Miguel Tala |
-| D. Agenda et suivi | Marc Steven Mouthoud | P0-13, P1-01, P1-02, P1-03, P1-05, P2-04, P2-05 | Houria Debbioui |
+| D. Agenda et suivi | Aminata Yasmine Savane | P0-13, P1-01, P1-02, P1-03, P1-05, P2-04, P2-05 | Houria Debbioui |
 
-Attribution tirée au sort pour le MVP, revue avant la phase 2.
+Attribution tirée au sort pour le MVP, puis lots A et D échangés ; revue avant la phase 2.
 
 ### Contrats entre lots
 
