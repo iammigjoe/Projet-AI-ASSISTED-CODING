@@ -1,216 +1,177 @@
 # MyPlan
 
-MyPlan transforme les cours d'un étudiant (PDF ou Markdown) en planning de révision. L'application découpe chaque cours en chapitres, estime le temps nécessaire pour chacun et les place dans les créneaux où l'étudiant est réellement disponible, en finissant avant chaque examen ou rendu de projet. Le planning part ensuite dans Google Agenda. Un dashboard suit la progression, le planning se réajuste en cas d'avance ou de retard, et un modèle de mémorisation indique quand réviser pour retenir durablement.
+MyPlan est notre version du sujet **StudyPlan** : l'étudiant importe ses cours (PDF ou Markdown) et ses échéances, MyPlan en tire des chapitres et une charge en heures, construit un planning de révision hebdomadaire dans ses créneaux libres, l'exporte en calendrier `.ics` et suit l'avancement dans un tableau de bord. **Le produit n'appelle aucune API d'IA** : l'IA a servi à le construire, pas à le faire tourner.
 
-**Stack** : Streamlit (interface), FastAPI (API), SQLite via SQLAlchemy (persistance), Google Calendar API (export), APScheduler (tâches en arrière-plan).
+**Stack** : FastAPI (API), Streamlit (interface), SQLite via SQLAlchemy et Alembic (persistance), `pypdf` et `markdown-it-py` (import), `icalendar` (export), pytest et ruff (qualité).
 
-**Statut** : en conception. Les spécifications sont écrites pour être données telles quelles à un assistant de code ; le développement suit l'ordre décrit plus bas.
+**Où en est le projet** : socle, sécurité, compte, matières et cadre de l'interface sont faits (lot A). L'import, le planificateur, l'export `.ics` et le tableau de bord sont en cours (lots B, C, D). Le détail par bloc est dans [SPEC.md](SPEC.md) §2.
+
+## Démarrage rapide
+
+Python 3.12 ou plus récent. Depuis la racine du dépôt :
+
+```bash
+python -m venv .venv
+.venv\Scripts\activate                # Windows ; macOS ou Linux : source .venv/bin/activate
+pip install -r requirements-dev.txt
+python scripts/init_env.py            # crée .env avec des clés secrètes générées
+alembic upgrade head                  # crée la base data/myplan.db
+```
+
+Puis, dans deux terminaux (venv activé dans chacun) :
+
+```bash
+uvicorn backend.main:app --reload     # API : http://localhost:8000 (documentation : /docs)
+streamlit run frontend/app.py         # interface : http://localhost:8501
+```
+
+Au premier lancement, l'onglet **« Créer le compte »** de la page de connexion crée le compte unique de l'application.
+
+Dans la documentation interactive (`/docs`), toutes les routes du contrat demandent un jeton : appeler `POST /auth/login`, copier `access_token`, puis le coller dans **Authorize**.
+
+### Vérifier
+
+```bash
+pytest                                # tests, tous verts
+ruff check . && ruff format --check . # lint et mise en forme
+pip-audit -r requirements.txt         # failles connues dans les dépendances
+```
+
+## Démo
+
+Les données de démo du sujet sont dans [`sample_data/`](sample_data/) : 3 cours Markdown (statistiques, machine learning, cloud et MLOps), [`deadlines.csv`](sample_data/deadlines.csv) (6 échéances, du 24 novembre au 18 décembre 2026) et [`availability.json`](sample_data/availability.json) (créneaux de la semaine, sessions de 60 minutes).
+
+Parcours de démo du sujet : **import → planning → `.ics` → tableau de bord**.
+
+1. Importer les 3 cours de `sample_data/` (page Documents).
+2. Saisir les échéances de `deadlines.csv` et les créneaux de `availability.json` (pages Échéances et Disponibilités).
+3. Générer le planning de la semaine (page Planning), marquer une session faite.
+4. Télécharger le `.ics` et l'ouvrir dans Google Agenda ou Outlook.
+5. Montrer l'avancement par matière (page Tableau de bord).
+
+## Contrat d'API
+
+Le contrat du sujet est repris **à l'identique, sans préfixe** ; MyPlan l'étend sans jamais le casser. Détail des champs, des erreurs et des extensions : [SPEC.md](SPEC.md) §3.
+
+```
+POST   /courses              multipart file -> {id, name, chapters:[{id,title,hours}], hours_total}
+GET    /courses              -> [{id, name, hours_total, hours_done, progress}]
+POST   /deadlines            {course_id, title, type, date, weight} -> 201
+GET    /deadlines            -> list sorted by date
+DELETE /deadlines/{id}       -> 204
+PUT    /availability         {session_minutes, slots:{monday:["18:00-20:00"], ...}}
+POST   /plan/generate        {week: "2026-W47"} -> [{id, course_id, chapter_id, start, end, done}]
+GET    /plan?week=2026-W47   -> sessions of the week
+PATCH  /sessions/{id}        {done: true}
+GET    /plan.ics             -> text/calendar
+```
+
+Extension principale : **toutes ces routes demandent un jeton** (`Authorization: Bearer …`), obtenu par `POST /auth/login`. Sans jeton, la réponse est `401`.
 
 ## Architecture
 
-Six couches, et une règle : **les dépendances ne descendent jamais**. Streamlit ne parle qu'à FastAPI, jamais à SQLite ; l'API ne parle qu'aux services ; les services orchestrent les trois couches du bas (domaine, persistance, intégrations) ; le domaine ne dépend de rien.
-
-Les specs écrivent « chaque couche ne parle qu'à la couche juste en dessous ». Prise à la lettre, la règle obligerait les services à passer par le domaine pour lire la base, alors que le domaine doit justement rester sans I/O : les trois couches du bas sont côte à côte sous les services, pas empilées.
+Six couches, et une règle : **les dépendances ne descendent jamais**. Streamlit ne parle qu'à FastAPI, jamais à SQLite ; l'API ne parle qu'aux services ; les services orchestrent les trois couches du bas ; le domaine ne dépend de rien.
 
 ```text
 ┌──────────────────────────────────────────────────────────┐
-│ 1. PRÉSENTATION        Streamlit                         │
+│ 1. PRÉSENTATION        Streamlit (frontend/)             │
 ├──────────────────────────────────────────────────────────┤
-│ 2. API / TRANSPORT     FastAPI : routers, schémas        │
-│                        Pydantic, auth, rate limiting     │
+│ 2. API                 FastAPI : routes, schémas,        │
+│                        authentification, protections     │
 ├──────────────────────────────────────────────────────────┤
-│ 3. SERVICES MÉTIER     orchestration des cas d'usage     │
-├──────────────────────────────────────────────────────────┤
-│ 4. DOMAINE (cœur)      algorithmes purs, sans I/O        │
-├──────────────────────────────────────────────────────────┤
-│ 5. PERSISTANCE         repositories, SQLite, fichiers    │
-├──────────────────────────────────────────────────────────┤
-│ 6. INTÉGRATIONS/INFRA  Google API, LLM, scheduler, email │
-└──────────────────────────────────────────────────────────┘
+│ 3. SERVICES            un service par cas d'usage        │
+├──────────────────┬───────────────────┬───────────────────┤
+│ 4. DOMAINE       │ 5. PERSISTANCE    │ 6. INTÉGRATIONS   │
+│ planificateur,   │ repositories,     │ pypdf, Markdown,  │
+│ estimation (pur) │ SQLite            │ icalendar         │
+└──────────────────┴───────────────────┴───────────────────┘
 ```
 
-| Couche | Rôle | Contenu |
-|---|---|---|
-| 1. Présentation | Affichage et formulaires, sans règle métier ni accès à la base | connexion, upload, édition des chapitres, disponibilités, échéances, calendrier, dashboard, préférences |
-| 2. API | Authentification, autorisation, validation des entrées, codes d'erreur | endpoints REST, schémas Pydantic, dépendance `get_current_user`, contrôle de propriété de chaque ressource |
-| 3. Services métier | Enchaîner les étapes d'un cas d'usage | `IngestionService`, `PlanningService`, `ProgressService`, `CalendarSyncService`, `NotificationService`, `MemoryService` |
-| 4. Domaine | Logique pure, testable sans base ni réseau | estimation du temps, planificateur, détection de conflits, calcul d'avance ou de retard, courbe d'oubli, révisions espacées |
-| 5. Persistance | Lecture et écriture, toujours filtrées par `user_id` | `UserRepository`, `CourseRepository`, `ChapterRepository`, `StudySessionRepository`…, fichiers uploadés, migrations Alembic |
-| 6. Intégrations | Tout ce qui est externe ou asynchrone | parsing PDF et Markdown, OAuth et API Google Calendar, résumés par LLM, scheduler, emails, journalisation |
-
-Pour savoir où placer une fonction : une formule ou une règle (« combien de temps », « où placer ») va dans le **domaine** ; un appel à un service externe, dans les **intégrations** ; un enchaînement de plusieurs étapes, dans les **services**.
-
-### Parcours d'un cours
-
-| Étape | Ce qui se passe | Couche |
-|---|---|---|
-| 1. Upload | Contrôle de la taille, du type réel (*magic bytes*) et stockage sous un nom généré | API, intégrations |
-| 2. Extraction | PDF vers texte (PyMuPDF), Markdown vers texte structuré ; erreur claire si le PDF est vide ou scanné | intégrations |
-| 3. Chapitres | Titres `#` et `##` en Markdown ; signets ou table des matières en PDF, sinon heuristique sur les titres | intégrations (lecture), domaine (détection) |
-| 4. Validation | L'étudiant renomme, fusionne, scinde ou supprime des chapitres avant de planifier | présentation |
-| 5. Estimation | `temps = (mots / vitesse_lecture) × coefficient_difficulté × coefficient_objectif`, modifiable à la main | domaine |
-| 6. Planification | Sessions réparties dans les créneaux libres, terminées avant chaque échéance | domaine, services |
-| 7. Export | Une session = un événement Google Agenda, mis à jour sans doublon | intégrations |
-| 8. Suivi | Session *faite* ou *non faite*, auto-évaluation, replanification proposée | présentation, services |
-
-## Fonctionnalités
-
-| Priorité | Signification | Fonctionnalités |
-|---|---|---|
-| **P0** | MVP : sans cela, l'application ne rend pas son service | comptes, matières, upload PDF et Markdown, extraction, détection et validation des chapitres, estimation du temps, profil d'étude, disponibilités, échéances, génération et affichage du planning, suivi des sessions |
-| **P1** | v1 utilisable au quotidien | export Google Agenda idempotent, dashboard, fuseaux horaires, lecture de l'agenda pour éviter les conflits, extraction asynchrone, suppression et export des données (RGPD), historique des plannings |
-| **P2** | Valeur ajoutée | replanification automatique validée par l'étudiant, rappels avant chaque session, résumés de chapitres par LLM, probabilité de mémorisation, auto-évaluation, révisions espacées, préférences de notification |
-| **P3** | Plus tard | OCR, quiz et flashcards, import `.docx` et `.pptx`, partage de planning, application mobile, vitesse de lecture apprise, Outlook et iCal, passage à PostgreSQL |
-
-Le détail et les critères d'acceptation de chaque fonctionnalité sont dans les [spécifications](Spec.md).
+Pour savoir où placer une fonction : une formule ou une règle (« combien de temps », « où placer ») va dans le **domaine** ; un appel à une bibliothèque de fichiers ou de calendrier, dans les **intégrations** ; un enchaînement de plusieurs étapes, dans les **services**.
 
 ## Décisions techniques
 
 | Décision | Pourquoi |
 |---|---|
-| **Streamlit ne parle qu'à FastAPI** | Toute règle d'accès vit dans l'API : un seul endroit à sécuriser et à tester. L'interface peut être remplacée plus tard (mobile, PWA) sans toucher au reste. Les clients HTTP de `frontend/api/` sont le seul point de contact. |
-| **Domaine pur, sans base ni réseau** | L'estimation, le planificateur et la courbe d'oubli sont les parties où une erreur se voit le moins et coûte le plus. Sans I/O, elles se testent unitairement, vite et sur des cas limites précis. |
-| **Validation manuelle des chapitres avant de planifier** | La détection automatique se trompera, surtout sur les PDF sans signets. Un planning bâti sur de mauvais chapitres serait faux de bout en bout ; l'étudiant corrige d'abord. |
-| **Formule d'estimation transparente et modifiable** | L'étudiant voit d'où vient chaque durée et peut la corriger. Une estimation opaque qu'on ne peut pas ajuster ferait perdre confiance dans tout le planning. |
-| **Un planning impossible est signalé, pas produit** | Quand le temps manque, l'application l'annonce (« il manque X h avant le … ») au lieu de tasser les sessions ou de dépasser l'échéance en silence. |
-| **Suivi des sessions dès le MVP** | Sans savoir ce qui a été fait, ni le dashboard, ni la replanification, ni le modèle de mémorisation ne peuvent fonctionner. |
-| **Instants en UTC, disponibilités en heure locale** | Une session ou une échéance est un instant : stockée en UTC, affichée dans le fuseau de l'étudiant, exportée telle quelle vers Google. « Lundi 18 h - 20 h » est une heure de l'étudiant : stockée en UTC, elle se décalerait d'une heure à chaque changement d'heure. Voir le [modèle de données](docs/modele_donnees.md) §5. |
-| **`google_event_id` gardé pour chaque session** | Régénérer le planning met à jour ou supprime les événements existants au lieu d'en créer de nouveaux : jamais de doublons dans l'agenda. |
-| **Replanification proposée, pas appliquée** | Le planning de l'étudiant ne change pas sans qu'il le voie. La proposition est validée avant de toucher aux sessions et à l'agenda. |
-| **Mémorisation : `R = e^(−t/S)`, nourrie par l'auto-évaluation** | `t` est le temps depuis la dernière révision, `S` la stabilité, qui augmente à chaque révision réussie. Un modèle purement temporel ignorerait ce que l'étudiant a réellement retenu ; la note de fin de session alimente `S`. Une révision est insérée quand `R` passe sous un seuil (70 % par défaut). |
-| **Scheduler en arrière-plan pour les rappels** | Streamlit ne peut pas envoyer de message de lui-même. APScheduler suffit pour un serveur unique ; Celery attendra un besoin réel. |
-| **Résumés générés une fois et stockés** | Un résumé ne change pas tant que le chapitre ne change pas : le stocker évite de payer et d'attendre un nouvel appel au LLM. |
-| **SQLite en mode WAL** | Suffisant pour un MVP sur un seul serveur. SQLite n'accepte qu'une écriture à la fois : le mode WAL laisse les lectures continuer pendant une écriture, et les transactions restent courtes. Le passage à PostgreSQL est prévu en P3, facilité par SQLAlchemy et Alembic. |
-| **LLM derrière une interface remplaçable** | Le fournisseur peut changer sans toucher aux services. Le texte des cours quitte alors le serveur : l'étudiant en est informé. |
+| **Contrat du sujet repris à l'identique** | « Étendez-le, ne le cassez jamais » : nos routes en plus (`/auth/*`, `PATCH /courses/{id}`, `/settings`) n'en modifient aucune. Le préfixe `/api/v1` d'abord prévu a été retiré pour coller au contrat. |
+| **Connexion obligatoire, même sur les routes du contrat** | L'API est joignable sur le réseau et contient les cours et le planning de l'étudiant. La grille du sujet valorise une sécurité vérifiée. |
+| **Un seul compte** | Outil personnel : l'inscription se ferme dès le premier compte. `user_id` reste dans toutes les tables pour ouvrir plusieurs comptes sans migration. |
+| **Domaine pur, testé sans base ni réseau** | Le planificateur et l'estimation sont là où une erreur se voit le moins et coûte le plus ; sans I/O, ils se testent vite et sur des cas limites précis. `now` est un paramètre : un test ne dépend pas du jour où il tourne. |
+| **Instants en UTC, disponibilités en heure locale** | Une session ou une échéance est un instant ; « lundi 18 h - 20 h » est une heure de l'étudiant. Stockée en UTC, elle se décalerait d'une heure à chaque changement d'heure. |
+| **Un planning par semaine ISO** | Contrat : `POST /plan/generate {week}`. Régénérer une semaine archive la version précédente ; un seul planning actif par semaine (index unique partiel). |
+| **`.ics` au lieu d'une synchronisation Google** | Bloc 4 du sujet : un fichier qui s'importe partout, sans OAuth ni jeton tiers à protéger. Un `UID` stable par session évite les doublons à la réimportation. |
+| **Aucune bibliothèque d'IA** | Exigé par le sujet. Les résumés par LLM d'abord prévus ont été retirés. |
+| **`pypdf` plutôt que PyMuPDF** | Recommandé par le sujet ; PyMuPDF est sous licence AGPL. |
+| **Migrations relues à la main** | `--autogenerate` a produit une migration qui échouait sur toute base non vide et oubliait des contraintes ; elle a été réécrite ([AI_LOG.md](AI_LOG.md)). |
+| **Pages dans `frontend/views/`, pas `pages/`** | Streamlit exécute directement un dossier `pages/`, sans la vérification de connexion de `frontend/app.py`. Trouvé en testant ; un test l'empêche de revenir. |
 
 ## Sécurité
 
-| Couche | Mesures |
+| Menace | Protection |
 |---|---|
-| Présentation | Aucun secret ni token côté Streamlit ; tout contenu affiché est échappé, en particulier le texte extrait des PDF ; pas de `unsafe_allow_html` avec du contenu utilisateur |
-| API | JWT à courte durée de vie avec refresh ; mots de passe hachés en argon2 ; **autorisation par ressource** contre les IDOR ; validation Pydantic stricte ; rate limiting sur la connexion et l'upload (`slowapi`) ; CORS restrictif ; HTTPS en production |
-| Upload | Taille maximale ; liste blanche de types vérifiée par *magic bytes* ; nom de fichier généré, jamais celui de l'utilisateur ; stockage hors dossier public ; protection contre le path traversal ; parsing avec timeout et limite mémoire contre les PDF piégés |
-| Persistance | Requêtes paramétrées uniquement ; **chaque requête filtrée par `user_id`** dans les repositories ; base SQLite hors dépôt Git ; tokens Google **chiffrés** au repos (Fernet) |
-| Intégrations | Scope Google minimal (`calendar.events`) ; refresh token chiffré et révocable ; le texte des cours envoyé au LLM est traité comme une donnée non fiable (prompt injection), et sa sortie est validée avant usage ; secrets dans `.env`, jamais commité |
-| Transverse | Journaux sans donnée sensible ; audit des connexions et des exports ; suppression des données sur demande (RGPD) ; dépendances vérifiées avec `pip-audit` ; tests d'autorisation |
+| Force brute sur la connexion | Limite par IP ; attente exponentielle après 5 échecs, par email et par IP ; même réponse que l'email existe ou non |
+| Vol de jeton | Jeton d'accès de 15 min ; jetons révocables d'un coup (déconnexion) ; types d'accès et de rafraîchissement non interchangeables |
+| Accès aux données d'un autre | `user_id` tiré du jeton uniquement, filtré dans chaque requête ; `404` pour une ressource d'un autre |
+| XSS (titre de chapitre, nom de matière) | Texte nettoyé à l'entrée, échappé à l'affichage ; HTML brut interdit dans le frontend, vérifié par un test |
+| Fichiers piégés, saturation | Taille maximale, type vérifié par *magic bytes*, nom de stockage généré ; limite de requêtes par IP |
 
-## Modèle de données
-
-| Table | Contenu |
-|---|---|
-| `users`, `user_settings` | compte, fuseau horaire, vitesse de lecture, durée max d'une session, pause, préférences de notification |
-| `courses`, `documents`, `chapters` | matière (nom, couleur, difficulté), fichier uploadé et son statut d'extraction, chapitres avec nombre de mots, durée estimée et durée corrigée |
-| `availabilities`, `availability_exceptions` | créneaux hebdomadaires récurrents, jours bloqués et créneaux ajoutés |
-| `deadlines`, `deadline_chapters` | examens et rendus, avec date, importance et chapitres concernés |
-| `plans`, `study_sessions` | versions successives du planning ; sessions avec statut (`planned`, `done`, `missed`), auto-évaluation et `google_event_id` |
-| `memory_states` | stabilité et dernière révision par chapitre ; la rétention se calcule à la lecture |
-| `google_credentials` | refresh token chiffré et scope accordé |
-| `notifications`, `summaries` | rappels programmés et envoyés, résumés générés par partie de chapitre |
-
-## Ordre de développement
-
-1. **Socle sécurisé** : authentification, modèles, repositories, isolation par `user_id`
-2. **Ingestion** : upload, extraction, chapitres, correction manuelle
-3. **Domaine pur** : estimation et planificateur, testés unitairement
-4. **Disponibilités, échéances, planning, vue calendrier**
-5. **Export Google et dashboard**
-6. **Scheduler, notifications, replanification**
-7. **Mémorisation et auto-évaluation**
-
-## Questions ouvertes
-
-- Un seul utilisateur ou plusieurs comptes dès le départ ? Le choix pèse sur l'authentification et l'isolation des données.
-- Les résumés passent-ils par un LLM externe ? Si oui, les cours quittent le serveur, et il faut le dire à l'utilisateur.
-- Quel canal de notification en premier : email, Telegram, autre ?
-- Les sessions replanifiées remplacent-elles les événements Google déjà créés, ou sont-elles d'abord proposées ?
-- Le modèle de mémorisation est-il seulement temporel, ou nourri par l'auto-évaluation et des quiz ?
-
-## Technologies
-
-| Besoin | Choix |
-|---|---|
-| Interface | Streamlit, `streamlit-calendar` |
-| API | FastAPI, Pydantic v2, Uvicorn |
-| Base de données | SQLite, SQLAlchemy 2.x, Alembic |
-| Authentification | `pyjwt`, `passlib[argon2]` |
-| PDF et Markdown | PyMuPDF, `markdown-it-py` |
-| Google | `google-auth-oauthlib`, `google-api-python-client` |
-| Tâches en arrière-plan | APScheduler |
-| Chiffrement | `cryptography` (Fernet) |
-| Rate limiting | `slowapi` |
-| Résumés | API Anthropic ou autre, derrière une interface |
-| Tests | pytest, httpx |
+Détail, limites connues et règles par lot : [docs/securite.md](docs/securite.md).
 
 ## Structure du dépôt
 
-Les dossiers existent, vides : le code n'a pas commencé. Chaque lot y crée ses fichiers en suivant les [conventions de nommage](docs/conventions_de_nommage.md) et la [répartition des tâches](docs/repartition_taches.md). Un `.gitkeep` garde chaque dossier vide dans Git, et peut être supprimé dès que le dossier contient un fichier.
-
 ```text
 myplan/
-│
 ├── frontend/                        # Couche 1 : interface Streamlit, sans règle métier ni accès à la base
-│   ├── pages/                       # Un fichier par écran (matières, documents, planning, tableau de bord…) ;
-│   │                                #   titres français déclarés dans app.py avec st.navigation
-│   ├── components/                  # Morceaux d'interface réutilisés par plusieurs pages (éditeur de chapitres,
-│   │                                #   carte de session)
-│   └── api/                         # Clients HTTP, un fichier par domaine : seul point de contact avec FastAPI
-│
-├── backend/                         # API FastAPI et tout le code métier
-│   ├── api/                         # Couche 2 : point d'entrée HTTP, dépendances (get_current_user), format des erreurs
-│   │   ├── routers/                 # Un router par ressource (/api/v1/courses, /plans…) : traduit HTTP en appel de service
-│   │   └── schemas/                 # Schémas Pydantic Create / Update / Read : ce qui entre et sort de l'API
-│   ├── services/                    # Couche 3 : un service par cas d'usage (ingestion, planification, suivi,
-│   │                                #   synchronisation Google, notifications, mémorisation)
-│   ├── domain/                      # Couche 4 : logique pure, sans base, réseau ni horloge (estimation,
-│   │                                #   détection des chapitres, planificateur, courbe d'oubli) et contrats entre lots
-│   ├── repositories/                # Couche 5 : requêtes SQL via SQLAlchemy, chaque méthode filtrée par user_id
-│   ├── integrations/                # Couche 6 : tout ce qui est externe, derrière une interface
-│   │   ├── parsers/                 # Lecture des PDF (PyMuPDF) et du Markdown, avec limite de temps
-│   │   ├── storage/                 # Validation des fichiers envoyés (magic bytes) et stockage sur disque
-│   │   ├── google/                  # OAuth et API Google Calendar : lecture des créneaux occupés, export des sessions
-│   │   ├── llm/                     # Client du LLM pour les résumés de chapitres
-│   │   ├── notifications/           # Canaux d'envoi des rappels (email en premier)
-│   │   └── scheduler/               # Tâches en arrière-plan (APScheduler) : rappels, extraction asynchrone
-│   ├── core/                        # Configuration (variables d'environnement), sécurité (argon2, JWT, Fernet),
-│   │                                #   journalisation, horloge injectée, branchement des implémentations
-│   └── db/                          # Base déclarative, connexion SQLite (PRAGMA), type UtcDateTime
-│       ├── models/                  # Modèles SQLAlchemy, un fichier par table ou groupe de tables
-│       └── migrations/
-│           └── versions/            # Migrations Alembic, une par pull request au plus
-│
-├── tests/                           # Tests pytest, même découpage que backend/
-│   ├── domain/                      # Tests purs du domaine : cas limites, changements d'heure
-│   ├── services/                    # Cas d'usage sur une base SQLite en mémoire, intégrations remplacées par des faux
-│   ├── repositories/                # Requêtes, dont les tests d'isolation entre utilisateurs
-│   ├── api/                         # Endpoints testés avec httpx : codes de réponse, format des erreurs, 404 croisés
-│   ├── integrations/                # Parseurs sur des fichiers réels, Google simulé
-│   └── fixtures/                    # Données de test partagées entre lots
-│       └── documents/               # PDF et Markdown d'exemple, dont des fichiers vides, scannés ou piégés
-│
+│   ├── app.py                       # Point d'entrée : connexion obligatoire, menu (titres français)
+│   ├── views/                       # Pages, un fichier par écran ; jamais de dossier « pages/ »
+│   ├── components/                  # Cadre commun (ui.py) et composants réutilisés
+│   └── api/                         # Clients HTTP par domaine, seul contact avec FastAPI
+├── backend/
+│   ├── main.py                      # Application FastAPI : protections, erreurs, routes
+│   ├── api/                         # Couche 2 : routes, schémas, authentification, protections
+│   ├── services/                    # Couche 3 : cas d'usage
+│   ├── domain/                      # Couche 4 : planificateur, estimation, règles (pur)
+│   ├── repositories/                # Couche 5 : requêtes, toujours filtrées par user_id
+│   ├── integrations/                # Couche 6 : lecture des fichiers, export .ics
+│   ├── core/                        # Configuration, sécurité, horloge
+│   └── db/                          # Modèles SQLAlchemy, types, migrations Alembic
+├── tests/                           # Tests pytest, même découpage que backend/ et frontend/
+├── sample_data/                     # Données de démo du sujet (3 cours, échéances, disponibilités)
+├── scripts/init_env.py              # Crée .env avec des clés secrètes générées
+├── docs/                            # Conception : conventions, modèle de données, classes, répartition, sécurité
+├── SPEC.md                          # Spécification : MVP, contrat d'API, touche, hors périmètre
+├── AI_LOG.md                        # Journal de notre usage de l'IA, échecs compris
+├── CLAUDE.md                        # Consignes pour Claude Code
+├── .github/
+│   ├── copilot-instructions.md      # Consignes pour GitHub Copilot, contrat d'API compris
+│   └── workflows/ci.yml             # CI : ruff, une seule tête Alembic, pytest, pip-audit
 ├── data/                            # Base SQLite locale (non versionnée)
-├── storage/                         # Fichiers envoyés par les étudiants, nommés par UUID (non versionnés)
-├── docs/                            # Conception : conventions, modèle de données, classes, répartition des tâches
-│
-├── Spec.md                          # Spécifications fonctionnelles : quoi construire, par qui, dans quel ordre
-├── README.md                        # Présentation du projet (ce fichier)
-├── .env.example                     # Variables d'environnement attendues, sans aucune valeur secrète
-└── .gitignore                       # Exclut .env, la base, les fichiers envoyés et les caches Python
+├── storage/                         # Fichiers importés, nommés par UUID (non versionnés)
+├── requirements.txt                 # Dépendances, versions figées ; aucune bibliothèque d'IA
+├── requirements-dev.txt             # pytest, ruff, pip-audit
+├── pyproject.toml                   # Configuration de ruff et pytest
+├── alembic.ini                      # Configuration des migrations
+├── .streamlit/config.toml           # Pas de trace d'erreur dans le navigateur, XSRF actif
+└── .env.example                     # Variables d'environnement attendues, sans secret
 ```
 
 ## Documentation
 
 | Document | Contenu |
 |---|---|
-| [Conventions de nommage](docs/conventions_de_nommage.md) | Nommage du code, de la base, des routes, des tests et des branches ; format des erreurs de l'API |
-| [Modèle de données](docs/modele_donnees.md) | Dictionnaire, règles de gestion, MCD, MLD et choix physiques SQLite ; écarts avec les specs et questions ouvertes |
-| [Diagrammes de classes](docs/diagramme_classes.md) | SOLID appliqué aux classes prévues : où sont les interfaces, et où il n'y en a volontairement pas |
-| [Répartition des tâches](docs/repartition_taches.md) | Quatre lots verticaux, contrats à fixer ensemble, dépendances, relectures croisées, calendrier par phase |
+| [SPEC.md](SPEC.md) | Les 5 blocs, le contrat d'API, notre touche, le hors-périmètre, les livrables |
+| [AI_LOG.md](AI_LOG.md) | Notre usage de l'IA : prompts, vérifications, échecs détectés |
+| [Conventions de nommage](docs/conventions_de_nommage.md) | Nommage, routes, format des erreurs, commentaires et docstrings |
+| [Modèle de données](docs/modele_donnees.md) | Dictionnaire, règles de gestion, MCD, MLD, choix physiques SQLite |
+| [Diagrammes de classes](docs/diagramme_classes.md) | SOLID appliqué : où sont les interfaces, et où il n'y en a volontairement pas |
+| [Sécurité](docs/securite.md) | Protections en place, limites connues, règles par lot |
+| [Répartition des tâches](docs/repartition_taches.md) | Lots, responsables, sprints, relectures croisées |
 
 ## Équipe
 
-| Membre | GitHub |
-|---|---|
-| Abraham Miguel Tala | [@iammigjoe](https://github.com/iammigjoe) |
-| Marc Steven Mouthoud | [@majin-m](https://github.com/majin-m) |
-| Debbioui Houria    | [@Houria-Deb](https://github.com/debbioui) |
-| Aminata Yasmine Savane | [@Aminata20011](https://github.com/Aminata20011) |
+| Membre | Lot | GitHub |
+|---|---|---|
+| Marc Steven Mouthoud | A. Socle et sécurité | [@majin-m](https://github.com/majin-m) |
+| Abraham Miguel Tala | B. Import | [@iammigjoe](https://github.com/iammigjoe) |
+| Houria Debbioui | C. Planification | [@Houria-Deb](https://github.com/debbioui) |
+| Aminata Yasmine Savane | D. Agenda et suivi | [@Aminata20011](https://github.com/Aminata20011) |

@@ -1,0 +1,23 @@
+# Dépendances de l'application, versions figées, une par ligne, ordre alphabétique.
+# Ajouter une dépendance : une ligne, à sa place alphabétique, dans la pull request qui l'utilise.
+# Aucune bibliothèque d'IA ou de LLM : le produit n'appelle aucune IA (STUDYPLAN_SPEC §1, §4).
+alembic==1.20.1
+apscheduler==3.11.3
+argon2-cffi==25.1.0
+cryptography==50.0.2
+fastapi==0.162.5
+httpx==0.28.1
+icalendar==7.3.0
+markdown-it-py==4.3.0
+pydantic==2.14.3
+pydantic-settings==2.16.2
+pyjwt==2.15.1
+pypdf==7.0.1
+python-multipart==0.0.33
+slowapi==0.1.10
+sqlalchemy==2.1.8
+streamlit==1.67.0
+streamlit-calendar==1.4.0
+# Base des fuseaux IANA (Europe/Paris…) : absente de Windows, indispensable à zoneinfo.
+tzdata==2026.6
+uvicorn==0.54.0
