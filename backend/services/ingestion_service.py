@@ -42,7 +42,6 @@ from backend.integrations.parsers.base import ParserRegistry
 from backend.integrations.storage.local_file_storage import LocalFileStorage
 from backend.integrations.storage.upload_validator import UploadValidator
 
-
 # =============================================================================
 # Types
 # =============================================================================

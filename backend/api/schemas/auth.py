@@ -3,7 +3,7 @@
 Schémas : auth
 ===============================================================================
 Objectif :
-    Ce qui entre et sort des routes /api/v1/auth.
+    Ce qui entre et sort des routes /auth.
 
 Responsabilités :
     - Normaliser l'email et vérifier le fuseau horaire dès l'entrée.

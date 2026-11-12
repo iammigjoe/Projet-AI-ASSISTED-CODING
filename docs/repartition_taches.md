@@ -1,6 +1,6 @@
 # Répartition des tâches
 
-Proposition de découpage du travail entre les quatre membres de l'équipe, pour que chacun avance sans attendre les autres et que les pull requests se marchent le moins possible dessus. Elle s'appuie sur les priorités des [specs](../Spec.md), l'[architecture](../README.md#architecture), le [modèle de données](modele_donnees.md) et les [diagrammes de classes](diagramme_classes.md).
+Proposition de découpage du travail entre les quatre membres de l'équipe, pour que chacun avance sans attendre les autres et que les pull requests se marchent le moins possible dessus. Elle s'appuie sur les priorités des [specs](../SPEC.md), l'[architecture](../README.md#architecture), le [modèle de données](modele_donnees.md) et les [diagrammes de classes](diagramme_classes.md).
 
 Les lots du MVP ont été tirés au sort (§8) ; l'attribution sera revue avant la phase 2.
 
@@ -23,64 +23,71 @@ MyPlan se découpe bien verticalement : l'ingestion, la planification et le suiv
 
 ### Vue d'ensemble
 
-| Lot | Domaine | Fonctionnalités | Pages Streamlit, dans `frontend/views/` |
-|---|---|---|---|
-| **A. Socle et sécurité** | Comptes, matières, paramètres, base, sécurité transverse, tâches en arrière-plan | P0-01, P0-02, P0-08, P1-04, P1-07, P2-02, P2-07 | `login.py`, `courses.py`, `settings.py`, et le point d'entrée `frontend/app.py` |
-| **B. Ingestion** | Du fichier aux chapitres estimés | P0-03, P0-04, P0-05, P0-06, P0-07, P1-06, P2-03 | `documents.py` |
-| **C. Planification** | Des disponibilités au planning | P0-09, P0-10, P0-11, P0-12, P1-08, P2-01, P2-06 | `availabilities.py`, `deadlines.py`, `plan.py` |
-| **D. Agenda et suivi** | De la session faite au dashboard et à la mémorisation | P0-13, P1-01, P1-02, P1-03, P1-05, P2-04, P2-05 | `dashboard.py`, et le composant `frontend/components/session_card.py` |
+Depuis le 12/11/2026, les lots suivent les **5 blocs du sujet StudyPlan** et son contrat d'API ([SPEC.md](../SPEC.md) §2 et §3).
 
-Les pages se créent dans **`frontend/views/`**, jamais dans un dossier `pages/` : Streamlit exécuterait ce dernier sans passer par la vérification de connexion de `frontend/app.py`. Une page apparaît dans le menu dès que son fichier existe ([Spec.md](../Spec.md) §10).
+| Lot | Domaine | Blocs du sujet | Routes du contrat | Pages Streamlit, dans `frontend/views/` |
+|---|---|---|---|---|
+| **A. Socle et sécurité** | Compte, matières, profil, base, sécurité, cadre du front | compte (extension), matières | `GET /courses`, `/auth/*`, `/settings` | `login.py`, `courses.py`, `settings.py`, point d'entrée `frontend/app.py` (**faits**) |
+| **B. Import** | Du fichier aux chapitres estimés | 1 | `POST /courses` (multipart) | `documents.py` (écran d'import) |
+| **C. Planification** | Disponibilités, échéances, planificateur | 2, 3 | `POST/GET/DELETE /deadlines`, `PUT /availability`, `POST /plan/generate`, `GET /plan` | `availabilities.py`, `deadlines.py`, `plan.py` |
+| **D. Agenda et suivi** | Sessions faites, export `.ics`, tableau de bord | 4, 5 | `PATCH /sessions/{id}`, `GET /plan.ics` | `dashboard.py`, composant `frontend/components/session_card.py` |
 
-Chaque lot a sept fonctionnalités. La charge n'est pas pour autant identique : le planificateur (C) et la synchronisation Google (D) sont les deux parties les plus difficiles, et c'est pourquoi le socle (A) prend en plus les tâches transverses.
+Les pages se créent dans **`frontend/views/`**, jamais dans un dossier `pages/` : Streamlit exécuterait ce dernier sans passer par la vérification de connexion de `frontend/app.py`. Une page apparaît dans le menu dès que son fichier existe ([SPEC.md](../SPEC.md) §9).
 
-### Lot A : socle et sécurité
+Le planificateur (C) est la pièce la plus délicate et la plus regardée en démo. Le lot A, terminé pour le MVP, peut aider C sur les tests du planificateur, et B ou D sur leurs pages.
 
-| Phase | Livrables |
+### Lot A : socle et sécurité (fait)
+
+| Livré | Où |
 |---|---|
-| 0 | Squelette du dépôt, `core/config.py`, `UtcDateTime`, écouteur SQLite (`foreign_keys`, `WAL`), `naming_convention`, première migration, CI (ruff, pytest, `alembic heads`), `frontend/api/base.py` |
-| 1 (P0) | Inscription, connexion, JWT et refresh, argon2, `get_current_user`, rate limiting sur la connexion, CRUD des matières, paramètres d'étude avec valeurs par défaut, **tests d'isolation entre utilisateurs** pour tous les endpoints |
-| 2 (P1) | Affichage dans le fuseau de l'étudiant sur toutes les pages et cohérence avec Google (P1-04 ; le stockage en UTC existe dès la phase 0), suppression de compte et export des données (P1-07, avec le lot D pour le nettoyage Google), en-têtes de sécurité, `pip-audit` en CI |
-| 3 (P2) | APScheduler, `NotificationChannel` et `EmailChannel` (P2-02), préférences de notification (P2-07) |
+| Socle : dépendances, configuration, base SQLite, modèles, migrations, CI | `backend/core/`, `backend/db/`, `.github/workflows/` |
+| Sécurité : force brute, XSS, jetons révocables, taille des requêtes, en-têtes | [securite.md](securite.md) |
+| Compte unique : inscription, connexion, renouvellement, déconnexion | `backend/api/routers/auth.py` |
+| Matières avec avancement (`GET /courses`), profil d'étude (`/settings`) | `backend/api/routers/courses.py`, `settings.py` |
+| Front : point d'entrée, connexion, matières, paramètres, cadre commun | `frontend/app.py`, `frontend/views/`, `frontend/components/ui.py` |
 
-Fichiers possédés : `backend/core/`, `backend/db/` (A écrit les modèles de la phase 0 ; ensuite, chaque lot fait évoluer ceux de ses tables), `backend/api/deps.py`, `backend/api/errors.py`, `backend/api/routers/auth.py`, `courses.py`, `settings.py`, `backend/integrations/notifications/`, `.github/`.
+Fichiers possédés : `backend/core/`, `backend/db/` (chaque lot fait évoluer les modèles de ses tables), `backend/api/deps.py`, `errors.py`, `middleware.py`, `rate_limit.py`, routers `auth.py`, `courses.py`, `settings.py`, `frontend/app.py`, `frontend/api/base.py`, `frontend/components/ui.py`, `.github/`.
 
 **A est aussi gardien des migrations** : il relit toute pull request qui en contient une (§5).
 
-### Lot B : ingestion
+### Lot B : import (bloc 1)
 
-| Phase | Livrables |
+| Livrable | Détail |
 |---|---|
-| 0 | Forme de `ParsedDocument` et de `DetectedChapter`, validée avec C ; jeu de fichiers d'exemple dans `tests/fixtures/documents/` (PDF avec et sans signets, Markdown imbriqué, PDF scanné, PDF vide, faux PDF) |
-| 1 (P0) | `UploadValidator` (taille, *magic bytes*), `LocalFileStorage`, `PdfParser` et `MarkdownParser` avec limite de temps, `chapter_detection` (signets, puis heuristique), `estimation`, édition des chapitres : renommer, fusionner, scinder, supprimer |
-| 2 (P1) | Extraction en arrière-plan avec statut `pending / processing / ready / failed` et code d'erreur (P1-06), rate limiting de l'upload |
-| 3 (P2) | `LlmClient`, `AnthropicLlmClient`, `SummaryService`, validation de la sortie, protection contre l'injection de prompt (P2-03) |
+| `POST /courses` multipart | Champ `file` ; crée la matière (nom = titre `#` ou nom du fichier), le document et les chapitres ; répond `{id, name, chapters:[{id,title,hours}], hours_total}` ; `@limiter.limit(UPLOAD_LIMIT)` |
+| Validation du fichier | `UploadValidator` : taille, *magic bytes* (`%PDF-`), jamais l'extension seule ; nom de stockage généré |
+| Lecture | `PdfParser` avec **`pypdf`** et limite de pages, `MarkdownParser` avec `markdown-it-py` |
+| Détection des chapitres | `domain/chapter_detection.py`, pur : titres `##` en Markdown, signets ou heuristique en PDF |
+| Charge en heures | `domain/estimation.py` : `max(1 h, mots / (vitesse × 60) × coefficients)` |
+| Page d'import | `frontend/views/documents.py`, avec `escape_markdown` pour les titres de chapitres |
+| Tests | Les 3 cours de `sample_data/`, un PDF, un faux PDF, un fichier vide, un fichier trop lourd |
 
-Fichiers possédés : `backend/domain/chapter_detection.py`, `estimation.py`, `backend/services/ingestion_service.py`, `summary_service.py`, `backend/integrations/parsers/`, `llm/`, `storage/`, routers `documents.py` et `chapters.py`.
+Fichiers possédés : `backend/domain/chapter_detection.py`, `estimation.py`, `documents.py`, `backend/services/ingestion_service.py`, `backend/integrations/parsers/`, `storage/`, router `documents.py` (`POST /courses`) et `chapters.py`.
 
-### Lot C : planification
+### Lot C : planification (blocs 2 et 3)
 
-| Phase | Livrables |
+| Livrable | Détail |
 |---|---|
-| 0 | Forme de `ChapterToPlan`, `FreeSlot`, `PlannedSession`, `PlanResult`, validée avec B et D |
-| 1 (P0) | Disponibilités et exceptions, échéances et leurs chapitres, calcul des créneaux libres (heure locale vers UTC, changements d'heure testés), **`planner`** avec détection d'infaisabilité (« il manque X h avant le … »), `PlanningService`, vue liste et vue calendrier semaine et mois |
-| 2 (P1) | Versions de planning, activation, comparaison de deux versions (P1-08), prise en compte des créneaux occupés via `BusyTimeReader` fourni par D |
-| 3 (P2) | Replanification à partir de l'avancement réel, proposée puis validée (P2-01), insertion des révisions espacées quand `R` passe sous le seuil (P2-06, avec la fonction de rétention de D) |
+| Échéances | `POST /deadlines` (date passée → 422, `weight` 0-100, type `exam`/`assignment`), `GET /deadlines` triées par date, `DELETE /deadlines/{id}` → 204 |
+| Disponibilités | `PUT /availability {session_minutes, slots}` remplace tous les créneaux ; heures locales |
+| Créneaux libres | `domain/free_slots.py` : créneaux de la semaine en heure locale → instants UTC, changements d'heure testés |
+| **Planificateur** | `domain/planner.py`, **pur** : sessions de `session_minutes` dans les créneaux libres, sans chevauchement, avant l'échéance ; priorité aux échéances proches et lourdes ; manque signalé |
+| Routes du planning | `POST /plan/generate {week}`, `GET /plan?week=` |
+| Pages | `availabilities.py`, `deadlines.py`, `plan.py` (vue de la semaine) |
+| Tests | Au moins 10 tests du planificateur, sur les données de `sample_data/` et les cas limites |
 
-Fichiers possédés : `backend/domain/planner.py`, `free_slots.py`, `replanning.py`, `backend/services/planning_service.py`, routers `availabilities.py`, `deadlines.py`, `plans.py`.
+Fichiers possédés : `backend/domain/planner.py`, `free_slots.py`, `planning.py`, `backend/services/planning_service.py`, routers `deadlines.py`, `availability.py`, `plan.py`.
 
-Le planificateur est la pièce la plus délicate du projet. C doit pouvoir s'y consacrer : c'est pourquoi les vues de suivi et de dashboard sont chez D, et non chez C.
+### Lot D : agenda et suivi (blocs 4 et 5)
 
-### Lot D : agenda et suivi
-
-| Phase | Livrables |
+| Livrable | Détail |
 |---|---|
-| 0 | Fabrique de sessions de test (`tests/fixtures/factories.py`), pour travailler sans attendre le planificateur |
-| 1 (P0) | Marquer une session faite ou non faite (P0-13), composant `session_card.py` utilisé par la page Planning de C, endpoint de progression |
-| 2 (P1) | OAuth Google, chiffrement Fernet du refresh token, `GoogleCalendarClient` (`CalendarWriter` puis `BusyTimeReader`), synchronisation idempotente (P1-01, P1-02, P1-05), dashboard : avancement par matière et par chapitre, heures prévues et réalisées, jours restants, sessions en retard (P1-03) |
-| 3 (P2) | Auto-évaluation après session (P2-05), `memory` : stabilité, rétention, mise à jour après une révision (P2-04), affichage par chapitre |
+| Session faite | `PATCH /sessions/{id} {done}` ; composant `session_card.py` utilisé par la page Planning de C |
+| **Export `.ics`** | `GET /plan.ics` avec **`icalendar`** : `text/calendar`, un `VEVENT` par session, « Matière — Chapitre » en titre, `UID` stable, heures en Europe/Paris ; tester l'import dans Google Agenda et Outlook |
+| Tableau de bord | `dashboard.py` : avancement en % par matière (déjà renvoyé par `GET /courses`), sessions faites et en retard, 3 prochaines échéances |
+| Tests | `.ics` valide et relu par `icalendar`, fuseau juste, semaine vide ; isolation de `PATCH /sessions/{id}` |
 
-Fichiers possédés : `backend/domain/memory.py`, `progress.py`, `backend/services/progress_service.py`, `calendar_sync_service.py`, `memory_service.py`, `backend/integrations/google/`, routers `study_sessions.py`, `progress.py`, `google.py`.
+Fichiers possédés : `backend/domain/progress.py`, `backend/services/progress_service.py`, `backend/integrations/ics/`, routers `sessions.py` et la route `GET /plan.ics`, `frontend/views/dashboard.py`, `frontend/components/session_card.py`.
 
 ---
 
@@ -103,12 +110,12 @@ La phase 0 tranche aussi les questions qui bloqueraient un lot plus tard :
 
 | Question | Bloque | Où |
 |---|---|---|
-| Échéances sans chapitres, chapitres sans échéance | Le planificateur (C), dès la phase 1 | [modele_donnees.md](modele_donnees.md) §6.6 |
-| Modifier un chapitre déjà étudié | L'édition des chapitres (B), dès la phase 1 | [modele_donnees.md](modele_donnees.md) §6.5 |
-| ~~Un compte ou plusieurs~~ (tranché : un seul au départ) ; canal de notification ; LLM externe ou non | A et B | [Spec.md](../Spec.md) §9 |
-| Reprise de `google_event_id` et agenda dédié | La synchronisation (D), en phase 2 : à trancher au plus tard en fin de phase 1 | [modele_donnees.md](modele_donnees.md) §6.1 et §6.4 |
+| ~~Échéances sans chapitres, chapitres sans échéance~~ | Tranché par le contrat : une échéance porte sur toute sa matière | [modele_donnees.md](modele_donnees.md) §6.6 |
+| Modifier un chapitre déjà étudié | L'édition des chapitres (B) | [modele_donnees.md](modele_donnees.md) §6.5 |
+| ~~Un compte ou plusieurs~~ | Tranché : un seul au départ | [SPEC.md](../SPEC.md) §8 |
+| Quelle touche présenter en démo | La démo | [SPEC.md](../SPEC.md) §4 |
 
-La branche `develop`, où arrivent toutes les pull requests, n'existe pas encore : A la crée en phase 0 et protège `main` et `develop` sur GitHub.
+La branche `develop`, où arrivent toutes les pull requests, existe depuis le 12/11/2026 (lot A).
 
 Une fois cette pull request fusionnée, un changement de contrat se fait par une pull request dédiée, relue par les lots concernés : jamais au détour d'une fonctionnalité.
 
@@ -127,8 +134,6 @@ flowchart LR
     A -->|user_id, paramètres| C
     B -->|chapitres| C
     C -->|sessions| D
-    D -->|créneaux occupés, rétention| C
-    D -->|suppression Google| A
 ```
 
 | Dépendance | Sans attendre |
@@ -136,8 +141,7 @@ flowchart LR
 | Tout le monde attend l'authentification de A | Phase 0 : un `get_current_user` provisoire qui renvoie l'utilisateur de test, remplacé par le vrai sans changer sa signature |
 | C attend les chapitres de B | C construit ses `ChapterToPlan` à la main dans ses tests ; le planificateur ne lit jamais un PDF |
 | D attend les sessions de C | D génère des sessions avec la fabrique de la phase 0 |
-| C attend `BusyTimeReader` de D (P1-05) | C code contre l'interface avec un `FakeBusyTimeReader` ; le client Google se branche ensuite dans `container.py` |
-| C attend la fonction de rétention de D (P2-06) | Signature fixée en début de phase 3 : `retention(state, at) -> float` |
+| D attend les échéances de C pour le tableau de bord (3 prochaines échéances) | D lit `GET /deadlines` dès que C l'expose ; en attendant, des échéances créées en base par les fabriques de test |
 
 La règle qui rend cela possible est déjà dans les diagrammes de classes : le domaine est pur et les intégrations sont derrière des interfaces. Chaque lot peut donc tester son code avec des faux, sans les autres.
 
@@ -175,18 +179,16 @@ Les binômes tournent à chaque phase, pour que chacun ait lu le code de tous le
 
 ---
 
-## 7. Calendrier par phase
+## 7. Calendrier : les sprints du Jour 2
 
-Chaque phase se termine par une démonstration **de bout en bout**, faite sur `develop`, par une autre personne que celle qui a codé.
+Le sujet fixe la journée ([SPEC.md](../SPEC.md), cadre). Le lot A est déjà livré : son responsable aide les autres lots.
 
-| Phase | A | B | C | D | Démonstration de fin de phase |
+| Sprint | A (fait) | B | C | D | Fin de sprint |
 |---|---|---|---|---|---|
-| **0. Contrats** | Squelette, CI, modèles, erreurs | `ParsedDocument`, fichiers d'exemple | Objets de planification | Fabriques de test | `pytest` et la CI passent sur un dépôt vide de fonctionnalités |
-| **1. MVP (P0)** | Auth, matières, paramètres, isolation | Upload, extraction, chapitres, estimation | Disponibilités, échéances, planificateur, calendrier | Suivi des sessions | Un étudiant s'inscrit, envoie un PDF, corrige ses chapitres, saisit ses créneaux et un examen, obtient un planning ou le message « il manque X h », et marque une session faite |
-| **2. v1 (P1)** | Fuseaux, RGPD, en-têtes | Extraction asynchrone | Versions de planning, conflits d'agenda | Google Agenda, dashboard | Le planning part dans Google Agenda ; le régénérer ne crée aucun doublon ; supprimer son compte supprime aussi les événements |
-| **3. Valeur ajoutée (P2)** | Scheduler, emails, préférences | Résumés par LLM | Replanification, révisions espacées | Auto-évaluation, mémorisation | Un retard déclenche une proposition de replanification ; un rappel arrive par email ; une révision apparaît quand la rétention passe sous 70 % |
-
-Les phases suivent l'ordre de développement des specs (§8) : le socle sécurisé d'abord, la mémorisation en dernier.
+| **9 h 45 · Sprint 1** | Aide C sur les tests du planificateur | `POST /courses` sur les 3 cours Markdown de `sample_data/`, chapitres, heures | Échéances, `PUT /availability`, **planificateur pur + tests** | `PATCH /sessions/{id}`, `.ics` sur des sessions de test, maquette du tableau de bord | Contrat respecté par chaque route du lot ; tests verts |
+| **11 h · Sprint 2** | Relectures, CI | PDF avec `pypdf`, page d'import | `POST /plan/generate`, `GET /plan`, page Planning | Export `.ics` branché, tableau de bord branché sur l'API | **Démo de bout en bout** : import → planning → `.ics` → tableau de bord |
+| **13 h 45 · Sprint 3** | Touche, README, `AI_LOG.md` | Cas limites de l'import | Cas limites du planificateur, replanification si choisie | Sessions en retard, test d'import du `.ics` dans un vrai agenda | Touche visible en démo |
+| **15 h · Gel du code** | Répétition de la démo, à quatre | | | | Chaque membre présente une partie |
 
 ### Fin d'une tâche
 
@@ -215,12 +217,12 @@ Lots tirés au sort le 12/11/2026, sans tenir compte des profils, puis lots A et
 
 | Lot | Responsable | Ce qu'il livre pour le MVP | Relu par |
 |---|---|---|---|
-| A. Socle et sécurité | Marc Steven Mouthoud | Squelette, CI, modèles et première migration, branche `develop` ; inscription, connexion, JWT, matières, paramètres d'étude, tests d'isolation | Aminata Yasmine Savane (D) |
-| B. Ingestion | Abraham Miguel Tala | `ParsedDocument`, fichiers d'exemple ; upload sécurisé, extraction PDF et Markdown, détection et édition des chapitres, estimation du temps | Marc Steven Mouthoud (A) |
-| C. Planification | Houria Debbioui | Objets de planification ; disponibilités, exceptions, échéances, créneaux libres, planificateur avec message d'infaisabilité, vues liste et calendrier | Abraham Miguel Tala (B) |
-| D. Agenda et suivi | Aminata Yasmine Savane | Fabriques de test ; marquer une session faite ou non faite, composant `session_card.py`, endpoint de progression | Houria Debbioui (C) |
+| A. Socle et sécurité | Marc Steven Mouthoud | Fait : socle, sécurité, compte, matières, profil, cadre du front | Aminata Yasmine Savane (D) |
+| B. Import | Abraham Miguel Tala | Bloc 1 : `POST /courses`, chapitres, heures, page d'import | Marc Steven Mouthoud (A) |
+| C. Planification | Houria Debbioui | Blocs 2 et 3 : échéances, disponibilités, planificateur, page Planning | Abraham Miguel Tala (B) |
+| D. Agenda et suivi | Aminata Yasmine Savane | Blocs 4 et 5 : sessions faites, export `.ics`, tableau de bord | Houria Debbioui (C) |
 
-Le lot D est le plus léger du MVP : Google Agenda et le dashboard n'arrivent qu'en phase 2. Son responsable a donc de la marge pour aider C sur les tests du planificateur, la pièce la plus délicate de la phase 1.
+Le sujet note aussi l'équipe : **chaque membre doit commiter**, et chacun présente une partie de la démo.
 
 ### Profils
 

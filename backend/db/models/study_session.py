@@ -9,8 +9,7 @@ Objectif :
 Responsabilités :
     - Instants UTC, fin strictement après le début.
     - Auto-évaluation de 1 à 5, seulement sur une session faite (RG9).
-    - google_event_id gardé pour la synchronisation (RG10 ; forme définitive
-      à trancher, modele_donnees.md §6.1).
+    - Exportée en .ics (bloc 4) : aucun identifiant externe à garder.
 
 Lot :
     D (agenda et suivi)
@@ -19,7 +18,7 @@ Lot :
 
 from datetime import datetime
 
-from sqlalchemy import CheckConstraint, ForeignKey, String
+from sqlalchemy import CheckConstraint, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.db.base import Base, TimestampMixin, enum_type
@@ -56,4 +55,3 @@ class StudySession(TimestampMixin, Base):
     )
     self_rating: Mapped[int | None]
     completed_at: Mapped[datetime | None] = mapped_column(UtcDateTime)
-    google_event_id: Mapped[str | None] = mapped_column(String(1024))

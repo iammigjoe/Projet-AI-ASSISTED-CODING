@@ -18,13 +18,13 @@ Lot :
 ===============================================================================
 """
 
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Protocol, Sequence
+from typing import Protocol
 
 from backend.domain.documents import ParsedDocument
 from backend.domain.enums import DocumentType
 from backend.domain.errors import UnsupportedFileTypeError
-
 
 # =============================================================================
 # Types

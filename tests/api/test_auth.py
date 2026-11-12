@@ -31,13 +31,11 @@ PASSWORD = "une phrase de passe solide"
 
 
 def _register(client, email=EMAIL, password=PASSWORD, **extra):
-    return client.post(
-        "/api/v1/auth/register", json={"email": email, "password": password, **extra}
-    )
+    return client.post("/auth/register", json={"email": email, "password": password, **extra})
 
 
 def _login(client, email=EMAIL, password=PASSWORD):
-    return client.post("/api/v1/auth/login", json={"email": email, "password": password})
+    return client.post("/auth/login", json={"email": email, "password": password})
 
 
 def _bearer(token: str) -> dict[str, str]:
@@ -116,7 +114,7 @@ def test_login_with_valid_credentials_returns_tokens(client):
     response = _login(client, email="ETUDIANT@exemple.fr")
 
     assert response.status_code == 200
-    me = client.get("/api/v1/auth/me", headers=_bearer(response.json()["access_token"]))
+    me = client.get("/auth/me", headers=_bearer(response.json()["access_token"]))
     assert me.json()["email"] == EMAIL
 
 
@@ -172,17 +170,17 @@ def test_login_of_account_pending_deletion_is_refused(client, engine):
 def test_refresh_returns_new_working_tokens(client):
     tokens = _register(client).json()
 
-    response = client.post("/api/v1/auth/refresh", json={"refresh_token": tokens["refresh_token"]})
+    response = client.post("/auth/refresh", json={"refresh_token": tokens["refresh_token"]})
 
     assert response.status_code == 200
-    me = client.get("/api/v1/auth/me", headers=_bearer(response.json()["access_token"]))
+    me = client.get("/auth/me", headers=_bearer(response.json()["access_token"]))
     assert me.status_code == 200
 
 
 def test_access_token_cannot_be_used_to_refresh(client):
     tokens = _register(client).json()
 
-    response = client.post("/api/v1/auth/refresh", json={"refresh_token": tokens["access_token"]})
+    response = client.post("/auth/refresh", json={"refresh_token": tokens["access_token"]})
 
     assert response.status_code == 401
 
@@ -190,7 +188,7 @@ def test_access_token_cannot_be_used_to_refresh(client):
 def test_refresh_token_cannot_access_the_api(client):
     tokens = _register(client).json()
 
-    response = client.get("/api/v1/auth/me", headers=_bearer(tokens["refresh_token"]))
+    response = client.get("/auth/me", headers=_bearer(tokens["refresh_token"]))
 
     assert response.status_code == 401
 
@@ -198,33 +196,30 @@ def test_refresh_token_cannot_access_the_api(client):
 def test_logout_revokes_access_and_refresh_tokens(client):
     tokens = _register(client).json()
 
-    logout = client.post("/api/v1/auth/logout", headers=_bearer(tokens["access_token"]))
+    logout = client.post("/auth/logout", headers=_bearer(tokens["access_token"]))
 
     assert logout.status_code == 204
-    assert client.get("/api/v1/auth/me", headers=_bearer(tokens["access_token"])).status_code == 401
-    refresh = client.post("/api/v1/auth/refresh", json={"refresh_token": tokens["refresh_token"]})
+    assert client.get("/auth/me", headers=_bearer(tokens["access_token"])).status_code == 401
+    refresh = client.post("/auth/refresh", json={"refresh_token": tokens["refresh_token"]})
     assert refresh.status_code == 401
 
 
 def test_login_after_logout_works_again(client):
     tokens = _register(client).json()
-    client.post("/api/v1/auth/logout", headers=_bearer(tokens["access_token"]))
+    client.post("/auth/logout", headers=_bearer(tokens["access_token"]))
 
     new_tokens = _login(client).json()
 
-    assert (
-        client.get("/api/v1/auth/me", headers=_bearer(new_tokens["access_token"])).status_code
-        == 200
-    )
+    assert client.get("/auth/me", headers=_bearer(new_tokens["access_token"])).status_code == 200
 
 
 def test_logout_requires_authentication(client):
-    assert client.post("/api/v1/auth/logout").status_code == 401
+    assert client.post("/auth/logout").status_code == 401
 
 
 def test_me_never_exposes_secrets(client):
     tokens = _register(client).json()
 
-    me = client.get("/api/v1/auth/me", headers=_bearer(tokens["access_token"])).json()
+    me = client.get("/auth/me", headers=_bearer(tokens["access_token"])).json()
 
     assert set(me) == {"id", "email", "timezone"}

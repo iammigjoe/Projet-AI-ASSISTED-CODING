@@ -33,7 +33,6 @@ from backend.domain.errors import (
     UnsupportedFileTypeError,
 )
 
-
 # =============================================================================
 # Constantes
 # =============================================================================
@@ -96,8 +95,6 @@ def detect_document_type(header_bytes: bytes) -> DocumentType:
     try:
         sample.decode("utf-8")
     except UnicodeDecodeError as exc:
-        raise UnsupportedFileTypeError(
-            "Le fichier n'est ni un PDF ni du texte UTF-8"
-        ) from exc
+        raise UnsupportedFileTypeError("Le fichier n'est ni un PDF ni du texte UTF-8") from exc
 
     return DocumentType.MARKDOWN

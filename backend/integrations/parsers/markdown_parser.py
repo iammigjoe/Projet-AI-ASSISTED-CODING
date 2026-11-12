@@ -38,7 +38,6 @@ from backend.domain.documents import ParsedDocument, TextBlock
 from backend.domain.enums import DocumentType, ExtractionErrorCode
 from backend.domain.errors import ExtractionError
 
-
 # =============================================================================
 # Constantes
 # =============================================================================

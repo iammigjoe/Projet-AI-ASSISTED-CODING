@@ -78,18 +78,11 @@ class ExtractionErrorCode(StrEnum):
 # =============================================================================
 
 
-class ExceptionKind(StrEnum):
-    """Nature d'une exception aux disponibilités (P0-09)."""
-
-    BLOCKED = "blocked"
-    ADDED = "added"
-
-
 class DeadlineType(StrEnum):
-    """Nature d'une échéance (P0-10)."""
+    """Nature d'une échéance, valeurs du contrat d'API (STUDYPLAN_SPEC §2, bloc 2)."""
 
     EXAM = "exam"
-    PROJECT = "project"
+    ASSIGNMENT = "assignment"
 
 
 class PlanStatus(StrEnum):

@@ -3,7 +3,7 @@
 Client HTTP : courses_api
 ===============================================================================
 Objectif :
-    Appels aux routes /api/v1/courses et /api/v1/settings.
+    Appels aux routes /courses et /settings.
 
 Utilisé par :
     frontend/views/courses.py, frontend/views/settings.py ; les autres lots
@@ -27,13 +27,8 @@ from frontend.api.base import ApiClient
 
 
 def list_courses(client: ApiClient) -> list[dict[str, Any]]:
-    """Liste les matières, triées par nom."""
+    """Liste les matières et leur avancement (hours_total, hours_done, progress), triées par nom."""
     return client.get("/courses")
-
-
-def create_course(client: ApiClient, name: str, color: str, difficulty: int) -> dict[str, Any]:
-    """Crée une matière ; ApiError CONFLICT si le nom est déjà pris."""
-    return client.post("/courses", json={"name": name, "color": color, "difficulty": difficulty})
 
 
 def update_course(client: ApiClient, course_id: int, **changes: Any) -> dict[str, Any]:

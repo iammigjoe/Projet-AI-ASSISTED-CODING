@@ -40,7 +40,8 @@ from backend.core.config import get_settings
 # Constantes
 # =============================================================================
 
-API_PREFIX = "/api/v1"
+# Routes du contrat sans préfixe : POST /courses, GET /plan.ics… (STUDYPLAN_SPEC §3).
+API_PREFIX = ""
 
 # =============================================================================
 # API publique

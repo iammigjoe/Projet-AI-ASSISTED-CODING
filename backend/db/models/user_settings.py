@@ -28,8 +28,10 @@ from backend.domain.enums import MasteryGoal
 # =============================================================================
 
 DEFAULT_READING_SPEED_WPM = 200
-DEFAULT_MAX_SESSION_MIN = 90
-DEFAULT_BREAK_MIN = 15
+# Valeurs du jeu de démo (sample_data/availability.json) : sessions de 60 min, sans pause
+# imposée, pour remplir un créneau de 18:00 à 20:00 avec deux sessions.
+DEFAULT_SESSION_MINUTES = 60
+DEFAULT_BREAK_MIN = 0
 DEFAULT_RETENTION_THRESHOLD = 0.70
 
 # =============================================================================
@@ -43,7 +45,7 @@ class UserSettings(TimestampMixin, Base):
     __tablename__ = "user_settings"
     __table_args__ = (
         CheckConstraint("reading_speed_wpm > 0", name="reading_speed_positive"),
-        CheckConstraint("max_session_min BETWEEN 15 AND 240", name="max_session_range"),
+        CheckConstraint("session_minutes BETWEEN 15 AND 240", name="session_minutes_range"),
         CheckConstraint("break_min >= 0", name="break_not_negative"),
         CheckConstraint("retention_threshold BETWEEN 0 AND 1", name="retention_threshold_range"),
     )
@@ -52,7 +54,8 @@ class UserSettings(TimestampMixin, Base):
         ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
     )
     reading_speed_wpm: Mapped[int] = mapped_column(default=DEFAULT_READING_SPEED_WPM)
-    max_session_min: Mapped[int] = mapped_column(default=DEFAULT_MAX_SESSION_MIN)
+    # Durée de chaque session du planning (contrat : PUT /availability, session_minutes).
+    session_minutes: Mapped[int] = mapped_column(default=DEFAULT_SESSION_MINUTES)
     break_min: Mapped[int] = mapped_column(default=DEFAULT_BREAK_MIN)
     mastery_goal: Mapped[MasteryGoal] = mapped_column(
         enum_type(MasteryGoal, "mastery_goal"), default=MasteryGoal.STANDARD

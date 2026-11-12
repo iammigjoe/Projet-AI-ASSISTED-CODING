@@ -25,6 +25,8 @@ from backend.db.base import Base, TimestampMixin
 # =============================================================================
 
 DEFAULT_DIFFICULTY = 3
+# Un cours importé (POST /courses avec un fichier) reçoit cette couleur, modifiable ensuite.
+DEFAULT_COLOR = "#3366FF"
 # SQLite n'a pas d'expression régulière : GLOB vérifie « # » suivi de 6 chiffres hexadécimaux.
 _HEX = "[0-9A-Fa-f]"
 COLOR_GLOB = "#" + _HEX * 6
@@ -48,5 +50,5 @@ class Course(TimestampMixin, Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     name: Mapped[str] = mapped_column(String(100))
-    color: Mapped[str] = mapped_column(String(7))
+    color: Mapped[str] = mapped_column(String(7), default=DEFAULT_COLOR)
     difficulty: Mapped[int] = mapped_column(default=DEFAULT_DIFFICULTY)

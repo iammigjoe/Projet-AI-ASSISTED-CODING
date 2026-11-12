@@ -33,7 +33,6 @@ from dataclasses import dataclass
 
 from backend.domain.enums import MasteryGoal
 
-
 # =============================================================================
 # Constantes
 # =============================================================================

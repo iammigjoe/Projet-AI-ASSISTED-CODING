@@ -37,7 +37,6 @@ from backend.domain.documents import (
     TextBlock,
 )
 
-
 # =============================================================================
 # API publique
 # =============================================================================
@@ -138,15 +137,11 @@ def _from_heading_blocks(blocks: tuple[TextBlock, ...]) -> list[DetectedChapter]
     S'il n'y a que des titres de niveau 1, chacun devient un chapitre
     (heuristique PDF sans signets).
     """
-    level_two_indexes = [
-        i for i, b in enumerate(blocks) if b.heading_level == 2
-    ]
+    level_two_indexes = [i for i, b in enumerate(blocks) if b.heading_level == 2]
     if level_two_indexes:
         return _chapters_from_indexes(blocks, level_two_indexes)
 
-    level_one_indexes = [
-        i for i, b in enumerate(blocks) if b.heading_level == 1
-    ]
+    level_one_indexes = [i for i, b in enumerate(blocks) if b.heading_level == 1]
     # Un seul # en tête (titre du document) ne forme pas un chapitre seul :
     # on attend des ##. S'il y a plusieurs #, heuristique PDF.
     if len(level_one_indexes) >= 2:
@@ -162,23 +157,11 @@ def _chapters_from_indexes(
     """Construit les chapitres entre titres successifs."""
     chapters: list[DetectedChapter] = []
     for position, start in enumerate(heading_indexes):
-        end = (
-            heading_indexes[position + 1]
-            if position + 1 < len(heading_indexes)
-            else len(blocks)
-        )
+        end = heading_indexes[position + 1] if position + 1 < len(heading_indexes) else len(blocks)
         title_block = blocks[start]
-        body_parts = [
-            b.text
-            for b in blocks[start + 1 : end]
-            if b.heading_level is None
-        ]
+        body_parts = [b.text for b in blocks[start + 1 : end] if b.heading_level is None]
         body = "\n".join(body_parts)
-        page_numbers = [
-            b.page
-            for b in blocks[start:end]
-            if b.page is not None
-        ]
+        page_numbers = [b.page for b in blocks[start:end] if b.page is not None]
         chapters.append(
             DetectedChapter(
                 title=title_block.text,

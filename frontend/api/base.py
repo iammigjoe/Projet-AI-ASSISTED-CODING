@@ -35,7 +35,8 @@ import httpx
 # =============================================================================
 
 DEFAULT_BASE_URL = "http://localhost:8000"
-API_PREFIX = "/api/v1"
+# Routes du contrat sans préfixe (STUDYPLAN_SPEC §3).
+API_PREFIX = ""
 TIMEOUT_SECONDS = 30.0
 
 # =============================================================================
@@ -74,7 +75,7 @@ class ApiClient:
         """Crée le client.
 
         Args:
-            base_url: URL de l'API, sans le préfixe /api/v1.
+            base_url: URL de l'API, par exemple http://localhost:8000.
             token_getter: Renvoie le jeton d'accès courant, ou None si
                 l'étudiant n'est pas connecté.
             refresher: Renouvelle les jetons après un 401 ; renvoie True si
@@ -125,7 +126,7 @@ class ApiClient:
 
         Args:
             method: Méthode HTTP.
-            path: Chemin relatif à /api/v1, par exemple « /courses ».
+            path: Chemin de la route, par exemple « /courses ».
             authenticated: False pour une route publique.
             **kwargs: Arguments transmis à httpx (json, params, files).
 

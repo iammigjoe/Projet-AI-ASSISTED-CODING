@@ -75,7 +75,6 @@ class ErrorCode(StrEnum):
     PLAN_NOT_FEASIBLE = "PLAN_NOT_FEASIBLE"
 
     # --- Agenda et suivi (lot D) ------------------------------------------
-    GOOGLE_NOT_CONNECTED = "GOOGLE_NOT_CONNECTED"
 
 
 # Codes HTTP des erreurs métier qui ne répondent pas 422.
